@@ -8,10 +8,10 @@ import { cn } from "~/lib/utils";
 import { Welcome } from "./welcome";
 
 const questions = [
-  "How many times taller is the Eiffel Tower than the tallest building in the world?",
-  "How many years does an average Tesla battery last compared to a gasoline engine?",
-  "How many liters of water are required to produce 1 kg of beef?",
-  "How many times faster is the speed of light compared to the speed of sound?",
+  "埃菲尔铁塔比世界上最高的建筑高多少倍？",
+  "特斯拉电池的平均使用寿命与汽油发动机相比有多少年？",
+  "生产1公斤牛肉需要多少升水？",
+  "光速是声速的多少倍？",
 ];
 export function ConversationStarter({
   className,

@@ -21,26 +21,26 @@ import { Tooltip } from "./tooltip";
 const REPORT_STYLES = [
   {
     value: "academic" as const,
-    label: "Academic",
-    description: "Formal, objective, and analytical with precise terminology",
+    label: "学术",
+    description: "正式、客观、分析性强，术语精确",
     icon: GraduationCap,
   },
   {
     value: "popular_science" as const,
-    label: "Popular Science",
-    description: "Engaging and accessible for general audience",
+    label: "科普",
+    description: "内容引人入胜，易于普通读者理解",
     icon: FileText,
   },
   {
     value: "news" as const,
-    label: "News",
-    description: "Factual, concise, and impartial journalistic style",
+    label: "新闻",
+    description: "事实清晰、简洁、中立的新闻报道风格",
     icon: Newspaper,
   },
   {
     value: "social_media" as const,
-    label: "Social Media",
-    description: "Concise, attention-grabbing, and shareable",
+    label: "社交媒体",
+    description: "简洁、引人注目、易于分享",
     icon: Users,
   },
 ];
@@ -68,11 +68,10 @@ export function ReportStyleDialog() {
         title={
           <div>
             <h3 className="mb-2 font-bold">
-              Writing Style: {currentStyleConfig.label}
+              写作风格: {currentStyleConfig.label}
             </h3>
             <p>
-              Choose the writing style for your research reports. Different
-              styles are optimized for different audiences and purposes.
+              为您的研究报告选择写作风格。不同的风格针对不同的读者和目的进行了优化。
             </p>
           </div>
         }
@@ -88,10 +87,9 @@ export function ReportStyleDialog() {
       </Tooltip>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Choose Writing Style</DialogTitle>
+          <DialogTitle>选择写作风格</DialogTitle>
           <DialogDescription>
-            Select the writing style for your research reports. Each style is
-            optimized for different audiences and purposes.
+            为您的研究报告选择写作风格。每种风格都针对不同的读者和目的进行了优化。
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-4">

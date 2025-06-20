@@ -215,11 +215,11 @@ export function InputBox({
               title={
                 <div>
                   <h3 className="mb-2 font-bold">
-                    Deep Thinking Mode: {enableDeepThinking ? "On" : "Off"}
+                    深度思考模式: {enableDeepThinking ? "开启" : "关闭"}
                   </h3>
                   <p>
-                    When enabled, DeerFlow will use reasoning model (
-                    {reasoningModel}) to generate more thoughtful plans.
+                    启用后，DeerFlow 将使用推理模型 ({reasoningModel})
+                    来生成更周全的计划。
                   </p>
                 </div>
               }
@@ -234,7 +234,7 @@ export function InputBox({
                   setEnableDeepThinking(!enableDeepThinking);
                 }}
               >
-                <Lightbulb /> Deep Thinking
+                <Lightbulb /> 深度思考
               </Button>
             </Tooltip>
           )}
@@ -244,12 +244,11 @@ export function InputBox({
             title={
               <div>
                 <h3 className="mb-2 font-bold">
-                  Investigation Mode: {backgroundInvestigation ? "On" : "Off"}
+                  调查模式: {backgroundInvestigation ? "开启" : "关闭"}
                 </h3>
                 <p>
-                  When enabled, DeerFlow will perform a quick search before
-                  planning. This is useful for researches related to ongoing
-                  events and news.
+                  启用后，DeerFlow
+                  将在规划前进行快速搜索，以更好地理解您的请求。
                 </p>
               </div>
             }
@@ -260,17 +259,18 @@ export function InputBox({
                 backgroundInvestigation && "!border-brand !text-brand",
               )}
               variant="outline"
-              onClick={() =>
-                setEnableBackgroundInvestigation(!backgroundInvestigation)
-              }
+              onClick={() => {
+                setEnableBackgroundInvestigation(!backgroundInvestigation);
+              }}
             >
-              <Detective /> Investigation
+              <Detective /> 调查
             </Button>
           </Tooltip>
+
           <ReportStyleDialog />
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Tooltip title="Enhance prompt with AI">
+          <Tooltip title={isEnhancing ? "正在增强..." : "使用 AI 增强提示"}>
             <Button
               variant="ghost"
               size="icon"
@@ -290,7 +290,7 @@ export function InputBox({
               )}
             </Button>
           </Tooltip>
-          <Tooltip title={responding ? "Stop" : "Send"}>
+          <Tooltip title={responding ? "停止" : "发送"}>
             <Button
               variant="outline"
               size="icon"

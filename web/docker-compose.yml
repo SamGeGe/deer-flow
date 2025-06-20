@@ -7,6 +7,8 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     image: deer-flow-web
     ports:
-      - "3000:3000"
+      - "9000:9000"
     env_file:
       - .env
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}

@@ -172,6 +172,20 @@ interface Plan {
 }
 ```
 
+---
+# VERY IMPORTANT
+
+- Your output **MUST** strictly follow the Plan and Step interface above.
+- **Each step in steps[] MUST include the field: `step_type`, and its value MUST be either `"research"` or `"processing"`**.
+- **If you omit `step_type`, the system will report an error and your answer will be discarded.**
+- **Do NOT use any other field names or translations. Only use: `need_search`, `title`, `description`, `step_type`.**
+- **Output only valid JSON, do not add any comments, extra text, or code block markers.**
+- **All field names must be in English, do not translate them.**
+- If you are unsure, repeat the interface definition in your mind and double-check your output.
+- Your output MUST include all fields in the Plan interface, especially the `locale` field (e.g., "zh-CN" or "en-US").
+
+---
+
 # Notes
 
 - Focus on information gathering in research steps - delegate all calculations to processing steps

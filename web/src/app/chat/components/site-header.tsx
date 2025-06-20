@@ -32,7 +32,7 @@ export async function SiteHeader() {
           >
             <Link href="https://github.com/bytedance/deer-flow" target="_blank">
               <GitHubLogoIcon className="size-4" />
-              Star on GitHub
+              在 GitHub 上 Star
               {env.NEXT_PUBLIC_STATIC_WEBSITE_ONLY &&
                 env.GITHUB_OAUTH_TOKEN && <StarCounter />}
             </Link>

@@ -330,7 +330,6 @@ function ThoughtBlock({
   if (!content || content.trim() === "") {
     return null;
   }
-
   return (
     <div className={cn("mb-6 w-full", className)}>
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -453,7 +452,9 @@ function PlanCard({
   const handleAccept = useCallback(async () => {
     if (onSendMessage) {
       onSendMessage(
-        `${GREETINGS[Math.floor(Math.random() * GREETINGS.length)]}! ${Math.random() > 0.5 ? "Let's get started." : "Let's start."}`,
+        `${GREETINGS[Math.floor(Math.random() * GREETINGS.length)]}! ${
+          Math.random() > 0.5 ? "Let's get started." : "Let's start."
+        }`,
         {
           interruptFeedback: "accepted",
         },
@@ -578,8 +579,8 @@ function PodcastCard({
                 {isGenerating
                   ? "Generating podcast..."
                   : isPlaying
-                    ? "Now playing podcast..."
-                    : "Podcast"}
+                  ? "Now playing podcast..."
+                  : "Podcast"}
               </RainbowText>
             ) : (
               <div className="text-red-500">

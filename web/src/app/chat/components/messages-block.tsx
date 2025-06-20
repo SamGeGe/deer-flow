@@ -152,16 +152,16 @@ export function MessagesBlock({ className }: { className?: string }) {
                   <CardHeader className={cn("flex-grow", responding && "pl-3")}>
                     <CardTitle>
                       <RainbowText animated={responding}>
-                        {responding ? "Replaying" : `${replayTitle}`}
+                        {responding ? "回放中" : `${replayTitle}`}
                       </RainbowText>
                     </CardTitle>
                     <CardDescription>
                       <RainbowText animated={responding}>
                         {responding
-                          ? "DeerFlow is now replaying the conversation..."
+                          ? "DeerFlow 正在回放对话..."
                           : replayStarted
-                            ? "The replay has been stopped."
-                            : `You're now in DeerFlow's replay mode. Click the "Play" button on the right to start.`}
+                            ? "回放已停止。"
+                            : `您现在处于 DeerFlow 的回放模式。点击右侧的"播放"按钮开始。`}
                       </RainbowText>
                     </CardDescription>
                   </CardHeader>
@@ -175,13 +175,13 @@ export function MessagesBlock({ className }: { className?: string }) {
                         onClick={handleFastForwardReplay}
                       >
                         <FastForward size={16} />
-                        Fast Forward
+                        快进
                       </Button>
                     )}
                     {!replayStarted && (
                       <Button className="w-24" onClick={handleStartReplay}>
                         <Play size={16} />
-                        Play
+                        播放
                       </Button>
                     )}
                   </div>
@@ -190,17 +190,16 @@ export function MessagesBlock({ className }: { className?: string }) {
             </Card>
             {!replayStarted && env.NEXT_PUBLIC_STATIC_WEBSITE_ONLY && (
               <div className="text-muted-foreground w-full text-center text-xs">
-                * This site is for demo purposes only. If you want to try your
-                own question, please{" "}
+                * 本站仅用于演示。如果您想尝试自己的问题，请{" "}
                 <a
                   className="underline"
                   href="https://github.com/bytedance/deer-flow"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  click here
+                  点击此处
                 </a>{" "}
-                to clone it locally and run it.
+                克隆到本地并运行。
               </div>
             )}
           </motion.div>

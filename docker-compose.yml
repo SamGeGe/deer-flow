@@ -6,6 +6,7 @@ services:
     container_name: deer-flow-backend
     ports:
       - "8000:8000"
+      - "9000:9000"
     env_file:
       - .env
     volumes:
@@ -13,6 +14,8 @@ services:
     restart: unless-stopped
     networks:
       - deer-flow-network
+    depends_on:
+      - redis
 
   frontend:
     build:
@@ -22,7 +25,7 @@ services:
         - NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
     container_name: deer-flow-frontend
     ports:
-      - "3000:3000"
+      - "9000:9000"
     env_file:
       - .env
     depends_on:

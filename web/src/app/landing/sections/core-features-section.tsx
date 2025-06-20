@@ -10,11 +10,11 @@ import { SectionHeader } from "../components/section-header";
 const features = [
   {
     Icon: Microscope,
-    name: "Dive Deeper and Reach Wider",
+    name: "更深、更广的探索",
     description:
-      "Unlock deeper insights with advanced tools. Our powerful search + crawling and Python tools gathers comprehensive data, delivering in-depth reports to enhance your study.",
+      "使用高级工具解锁更深刻的见解。我们强大的搜索+爬虫和 Python 工具可收集全面的数据，提供深入的报告以增强您的研究。",
     href: "https://github.com/bytedance/deer-flow/blob/main/src/tools",
-    cta: "Learn more",
+    cta: "了解更多",
     background: (
       <img alt="background" className="absolute -top-20 -right-20 opacity-60" />
     ),
@@ -22,11 +22,11 @@ const features = [
   },
   {
     Icon: User,
-    name: "Human-in-the-loop",
+    name: "人机协同（Human-in-the-loop）",
     description:
-      "Refine your research plan, or adjust focus areas all through simple natural language.",
+      "通过简单的自然语言，优化您的研究计划或调整重点领域。",
     href: "https://github.com/bytedance/deer-flow/blob/main/src/graph/nodes.py",
-    cta: "Learn more",
+    cta: "了解更多",
     background: (
       <img alt="background" className="absolute -top-20 -right-20 opacity-60" />
     ),
@@ -34,11 +34,10 @@ const features = [
   },
   {
     Icon: Bird,
-    name: "Lang Stack",
-    description:
-      "Build with confidence using the LangChain and LangGraph frameworks.",
+    name: "语言技术栈",
+    description: "使用 LangChain 和 LangGraph 框架充满信心地构建。",
     href: "https://www.langchain.com/",
-    cta: "Learn more",
+    cta: "了解更多",
     background: (
       <img alt="background" className="absolute -top-20 -right-20 opacity-60" />
     ),
@@ -46,11 +45,10 @@ const features = [
   },
   {
     Icon: Usb,
-    name: "MCP Integrations",
-    description:
-      "Supercharge your research workflow and expand your toolkit with seamless MCP integrations.",
+    name: "MCP 集成",
+    description: "通过无缝的 MCP 集成，增强您的研究工作流程并扩展您的工具包。",
     href: "https://github.com/bytedance/deer-flow/blob/main/src/graph/nodes.py",
-    cta: "Learn more",
+    cta: "了解更多",
     background: (
       <img alt="background" className="absolute -top-20 -right-20 opacity-60" />
     ),
@@ -58,11 +56,10 @@ const features = [
   },
   {
     Icon: Podcast,
-    name: "Podcast Generation",
-    description:
-      "Instantly generate podcasts from reports. Perfect for on-the-go learning or sharing findings effortlessly.  ",
+    name: "播客生成",
+    description: "从报告中即时生成播客。非常适合在移动中学习或轻松分享研究结果。",
     href: "https://github.com/bytedance/deer-flow/blob/main/src/podcast",
-    cta: "Learn more",
+    cta: "了解更多",
     background: (
       <img alt="background" className="absolute -top-20 -right-20 opacity-60" />
     ),
@@ -75,8 +72,8 @@ export function CoreFeatureSection() {
     <section className="relative flex w-full flex-col content-around items-center justify-center">
       <SectionHeader
         anchor="core-features"
-        title="Core Features"
-        description="Find out what makes DeerFlow effective."
+        title="核心功能"
+        description="了解 DeerFlow 高效的原因。"
       />
       <BentoGrid className="w-3/4 lg:grid-cols-2 lg:grid-rows-3">
         {features.map((feature) => (

@@ -19,7 +19,7 @@ const Main = dynamic(() => import("./main"), {
   ssr: false,
   loading: () => (
     <div className="flex h-full w-full items-center justify-center">
-      Loading DeerFlow...
+      正在加载 DeerFlow...
     </div>
   ),
 });
@@ -30,7 +30,7 @@ export default function HomePage() {
       <header className="fixed top-0 left-0 flex h-12 w-full items-center justify-between px-4">
         <Logo />
         <div className="flex items-center">
-          <Tooltip title="Star DeerFlow on GitHub">
+          <Tooltip title="在 GitHub 上关注 DeerFlow">
             <Button variant="ghost" size="icon" asChild>
               <Link
                 href="https://github.com/bytedance/deer-flow"
