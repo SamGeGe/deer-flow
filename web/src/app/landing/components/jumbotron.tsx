@@ -57,26 +57,10 @@ export function Jumbotron() {
               开始使用 <ChevronRight />
             </Link>
           </Button>
-          {!env.NEXT_PUBLIC_STATIC_WEBSITE_ONLY && (
-            <Button
-              className="w-42 text-lg"
-              size="lg"
-              variant="outline"
-              asChild
-            >
-              <Link
-                href="https://github.com/bytedance/deer-flow"
-                target="_blank"
-              >
-                <GithubFilled />
-                了解更多
-              </Link>
-            </Button>
-          )}
         </div>
       </div>
       <div className="absolute bottom-8 flex text-xs opacity-50">
-        <p>* DEER 是“深度探索与高效研究”的缩写。</p>
+        <p>* DEER 是"深度探索与高效研究"的缩写。</p>
       </div>
     </section>
   );
