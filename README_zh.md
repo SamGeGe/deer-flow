@@ -94,7 +94,8 @@ cp conf.yaml.example conf.yaml
 
 # 安装marp用于PPT生成
 # https://github.com/marp-team/marp-cli?tab=readme-ov-file#use-package-manager
-brew install marp-cli
+# macOS 用户请运行: brew install marp-cli
+# Windows/Linux 用户请安装 Node.js 后运行: npm install -g @marp-team/marp-cli
 ```
 
 可选，通过[pnpm](https://pnpm.io/installation)安装 Web UI 依赖：
@@ -133,7 +134,7 @@ uv run main.py
 ./bootstrap.sh -d
 
 # 在Windows上
-bootstrap.bat -d
+.\bootstrap.bat -d
 ```
 
 打开浏览器并访问[`http://localhost:3000`](http://localhost:3000)探索 Web UI。

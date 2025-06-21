@@ -11,6 +11,7 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from langchain_core.messages import AIMessageChunk, ToolMessage, BaseMessage
 from langgraph.types import Command
 
@@ -60,6 +61,11 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Serve static files from the "outputs" directory
+if not os.path.exists("outputs"):
+    os.makedirs("outputs")
+app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
 graph = build_graph_with_memory()
 

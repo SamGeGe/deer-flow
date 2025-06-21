@@ -7,8 +7,10 @@ import Link from "next/link";
 
 import { AuroraText } from "~/components/magicui/aurora-text";
 import { FlickeringGrid } from "~/components/magicui/flickering-grid";
+import { ShineBorder } from "~/components/magicui/shine-border";
 import { Button } from "~/components/ui/button";
 import { env } from "~/env";
+import { LogoIcon } from "~/components/deer-flow/logo";
 
 export function Jumbotron() {
   return (
@@ -22,16 +24,13 @@ export function Jumbotron() {
         maxOpacity={0.133}
         flickerChance={0.1}
       />
-      <FlickeringGrid
-        id="deer-hero"
-        className="absolute inset-0 z-0 translate-y-[2vh] mask-[url(/images/deer-hero.svg)] mask-size-[100vw] mask-center mask-no-repeat md:mask-size-[72vh]"
-        squareSize={3}
-        gridGap={6}
-        color="#60A5FA"
-        maxOpacity={0.64}
-        flickerChance={0.12}
-      />
       <div className="relative z-10 flex flex-col items-center justify-center gap-12">
+        <ShineBorder
+          className="relative flex h-24 w-24 items-center justify-center rounded-full border-2 bg-white/5 md:h-32 md:w-32"
+          color="#60A5FA"
+        >
+          <LogoIcon className="h-20 w-20 md:h-28 md:w-28" />
+        </ShineBorder>
         <h1 className="text-center text-4xl font-bold md:text-6xl">
           <span className="bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
             深度研究{" "}

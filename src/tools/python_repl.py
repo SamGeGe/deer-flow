@@ -28,6 +28,7 @@ def python_repl_tool(
 
     logger.info("Executing Python code")
     try:
+        code = code.strip()
         result = repl.run(code)
         # Check if the result is an error message by looking for typical error patterns
         if isinstance(result, str) and ("Error" in result or "Exception" in result):

@@ -41,8 +41,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--host",
         type=str,
-        default="localhost",
-        help="Host to bind the server to (default: localhost)",
+        default="127.0.0.1",
+        help="Host to bind the server to (default: 127.0.0.1)",
     )
     parser.add_argument(
         "--port",

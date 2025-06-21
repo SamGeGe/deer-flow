@@ -12,7 +12,8 @@ export function parseJSON<T>(json: string | null | undefined, fallback: T) {
       .replace(/^```ts\s*/, "")
       .replace(/^```plaintext\s*/, "")
       .replace(/^```\s*/, "")
-      .replace(/\s*```$/, "");
+      .replace(/\s*```$/, "")
+      .replace(/\(\)$/, "");
     return parse(raw) as T;
   } catch {
     return fallback;

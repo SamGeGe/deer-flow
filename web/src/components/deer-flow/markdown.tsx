@@ -19,6 +19,7 @@ import { cn } from "~/lib/utils";
 import Image from "./image";
 import { Tooltip } from "./tooltip";
 import { Link } from "./link";
+import { resolveServiceURL } from "~/core/api";
 
 export function Markdown({
   className,
@@ -42,11 +43,21 @@ export function Markdown({
           {children}
         </Link>
       ),
-      img: ({ src, alt }) => (
-        <a href={src as string} target="_blank" rel="noopener noreferrer">
-          <Image className="rounded" src={src as string} alt={alt ?? ""} />
-        </a>
-      ),
+      img: ({ src, alt }) => {
+        const srcStr = String(src ?? "");
+        let fullSrc = srcStr;
+        // if src is not an absolute url, resolve it with the service url
+        if (!srcStr.startsWith("http")) {
+          fullSrc = resolveServiceURL(
+            srcStr.startsWith("/") ? srcStr : `/${srcStr}`,
+          );
+        }
+        return (
+          <a href={fullSrc} target="_blank" rel="noopener noreferrer">
+            <Image className="rounded" src={fullSrc} alt={alt ?? ""} />
+          </a>
+        );
+      },
     };
   }, [checkLinkCredibility]);
 
