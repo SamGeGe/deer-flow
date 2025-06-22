@@ -139,63 +139,68 @@ async def _astream_workflow_generator(
         stream_mode=["messages", "updates"],
         subgraphs=True,
     ):
-        if isinstance(event_data, dict):
-            if "__interrupt__" in event_data:
-                yield _make_event(
-                    "interrupt",
-                    {
-                        "thread_id": thread_id,
-                        "id": event_data["__interrupt__"][0].ns[0],
-                        "role": "assistant",
-                        "content": event_data["__interrupt__"][0].value,
-                        "finish_reason": "interrupt",
-                        "options": [
-                            {"text": "Edit plan", "value": "edit_plan"},
-                            {"text": "Start research", "value": "accepted"},
-                        ],
-                    },
-                )
-            continue
-        message_chunk, message_metadata = cast(
-            tuple[BaseMessage, dict[str, any]], event_data
-        )
-        event_stream_message: dict[str, any] = {
-            "thread_id": thread_id,
-            "agent": agent[0].split(":")[0],
-            "id": message_chunk.id,
-            "role": "assistant",
-            "content": message_chunk.content,
-        }
-        if message_chunk.additional_kwargs.get("reasoning_content"):
-            event_stream_message["reasoning_content"] = message_chunk.additional_kwargs[
-                "reasoning_content"
-            ]
-        if message_chunk.response_metadata.get("finish_reason"):
-            event_stream_message["finish_reason"] = message_chunk.response_metadata.get(
-                "finish_reason"
+        try:
+            if isinstance(event_data, dict):
+                if "__interrupt__" in event_data:
+                    yield _make_event(
+                        "interrupt",
+                        {
+                            "thread_id": thread_id,
+                            "id": event_data["__interrupt__"][0].ns[0],
+                            "role": "assistant",
+                            "content": event_data["__interrupt__"][0].value,
+                            "finish_reason": "interrupt",
+                            "options": [
+                                {"text": "Edit plan", "value": "edit_plan"},
+                                {"text": "Start research", "value": "accepted"},
+                            ],
+                        },
+                    )
+                continue
+            message_chunk, message_metadata = cast(
+                tuple[BaseMessage, dict[str, any]], event_data
             )
-        if isinstance(message_chunk, ToolMessage):
-            # Tool Message - Return the result of the tool call
-            event_stream_message["tool_call_id"] = message_chunk.tool_call_id
-            yield _make_event("tool_call_result", event_stream_message)
-        elif isinstance(message_chunk, AIMessageChunk):
-            # AI Message - Raw message tokens
-            if message_chunk.tool_calls:
-                # AI Message - Tool Call
-                event_stream_message["tool_calls"] = message_chunk.tool_calls
-                event_stream_message["tool_call_chunks"] = (
-                    message_chunk.tool_call_chunks
+            event_stream_message: dict[str, any] = {
+                "thread_id": thread_id,
+                "agent": agent[0].split(":")[0],
+                "id": message_chunk.id,
+                "role": "assistant",
+                "content": message_chunk.content,
+            }
+            if message_chunk.additional_kwargs.get("reasoning_content"):
+                event_stream_message["reasoning_content"] = message_chunk.additional_kwargs[
+                    "reasoning_content"
+                ]
+            if message_chunk.response_metadata.get("finish_reason"):
+                event_stream_message["finish_reason"] = message_chunk.response_metadata.get(
+                    "finish_reason"
                 )
-                yield _make_event("tool_calls", event_stream_message)
-            elif message_chunk.tool_call_chunks:
-                # AI Message - Tool Call Chunks
-                event_stream_message["tool_call_chunks"] = (
-                    message_chunk.tool_call_chunks
-                )
-                yield _make_event("tool_call_chunks", event_stream_message)
-            else:
+            if isinstance(message_chunk, ToolMessage):
+                # Tool Message - Return the result of the tool call
+                event_stream_message["tool_call_id"] = message_chunk.tool_call_id
+                yield _make_event("tool_call_result", event_stream_message)
+            elif isinstance(message_chunk, AIMessageChunk):
                 # AI Message - Raw message tokens
-                yield _make_event("message_chunk", event_stream_message)
+                if message_chunk.tool_calls:
+                    # AI Message - Tool Call
+                    event_stream_message["tool_calls"] = message_chunk.tool_calls
+                    event_stream_message["tool_call_chunks"] = (
+                        message_chunk.tool_call_chunks
+                    )
+                    yield _make_event("tool_calls", event_stream_message)
+                elif message_chunk.tool_call_chunks:
+                    # AI Message - Tool Call Chunks
+                    event_stream_message["tool_call_chunks"] = (
+                        message_chunk.tool_call_chunks
+                    )
+                    yield _make_event("tool_call_chunks", event_stream_message)
+                else:
+                    # AI Message - Raw message tokens
+                    yield _make_event("message_chunk", event_stream_message)
+        except Exception as e:
+            logger.error(f"Error in chat stream: {e}", exc_info=True)
+            yield _make_event("error", {"detail": INTERNAL_SERVER_ERROR_DETAIL})
+            break
 
 
 def _make_event(event_type: str, data: dict[str, any]):
