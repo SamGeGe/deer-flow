@@ -15,6 +15,9 @@ import { ThemeToggle } from "../../components/deer-flow/theme-toggle";
 import { Tooltip } from "../../components/deer-flow/tooltip";
 import { SettingsDialog } from "../settings/dialogs/settings-dialog";
 
+// This is the line we are adding to fix the build issue.
+export const dynamic = "force-dynamic";
+
 const Main = dynamic(() => import("./main"), {
   ssr: false,
   loading: () => (
@@ -24,7 +27,7 @@ const Main = dynamic(() => import("./main"), {
   ),
 });
 
-export default function HomePage() {
+export default function ChatPage() {
   return (
     <div className="flex h-screen w-screen justify-center overscroll-none">
       <header className="fixed top-0 left-0 flex h-12 w-full items-center justify-between px-4">
