@@ -11,6 +11,8 @@ import { CoreFeatureSection } from "./landing/sections/core-features-section";
 import { JoinCommunitySection } from "./landing/sections/join-community-section";
 import { MultiAgentSection } from "./landing/sections/multi-agent-section";
 
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   return (
     <div className="flex flex-col items-center">
