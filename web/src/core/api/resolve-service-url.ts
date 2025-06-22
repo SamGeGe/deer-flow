@@ -4,9 +4,19 @@
 import { env } from "~/env";
 
 export function resolveServiceURL(path: string) {
-  let BASE_URL = env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:9001/api/";
-  if (!BASE_URL.endsWith("/")) {
-    BASE_URL += "/";
+  const apiUrl = env.NEXT_PUBLIC_API_URL;
+
+  // If an absolute API URL is provided via environment variables, use it.
+  if (apiUrl) {
+    let absoluteUrl = apiUrl;
+    if (!absoluteUrl.endsWith("/")) {
+      absoluteUrl += "/";
+    }
+    return new URL(path, absoluteUrl).toString();
   }
-  return new URL(path, BASE_URL).toString();
+
+  // Otherwise, default to a relative path. This works when the web server
+  // serves the frontend and proxies API requests from the same port.
+  const relativePath = `/api/${path.startsWith('/') ? path.substring(1) : path}`;
+  return relativePath;
 }

@@ -130,14 +130,20 @@ uv run main.py
 
 ```bash
 # 在开发模式下同时运行后端和前端服务器
+# bootstrap 脚本会为您同时启动后端API服务和前端Web界面
 # 在macOS/Linux上
 ./bootstrap.sh -d
 
 # 在Windows上
-.\bootstrap.bat -d
+bootstrap.bat -d
 ```
 
 打开浏览器并访问[`http://localhost:3000`](http://localhost:3000)探索 Web UI。
+
+> [!提示]
+> 只有当您需要将前端和后端 **部署在不同的地址** (例如，前端托管于 Vercel，后端在您自己的服务器) 时, 
+> 才需要在 `web` 目录下的 `.env.local` 文件中设置 `NEXT_PUBLIC_API_URL` 环境变量来指定后端的绝对地址。
+> 对于大多数将前后端部署在同一服务器的场景（包括使用 Docker 或 Ngrok），您 **无需** 进行任何额外配置。
 
 在[`web`](./web/)目录中探索更多详情。
 
