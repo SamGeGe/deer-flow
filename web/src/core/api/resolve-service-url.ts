@@ -12,7 +12,11 @@ export function resolveServiceURL(path: string) {
     if (!absoluteUrl.endsWith("/")) {
       absoluteUrl += "/";
     }
-    return new URL(path, absoluteUrl).toString();
+    
+    // Ensure path starts with api/ if it doesn't already
+    const apiPath = path.startsWith('api/') ? path : `api/${path.startsWith('/') ? path.substring(1) : path}`;
+    
+    return new URL(apiPath, absoluteUrl).toString();
   }
 
   // Otherwise, default to a relative path. This works when the web server

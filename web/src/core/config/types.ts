@@ -4,7 +4,7 @@ export interface ModelConfig {
 }
 
 export interface RagConfig {
-  provider: string;
+  provider: string | null;
 }
 
 export interface DeerFlowConfig {

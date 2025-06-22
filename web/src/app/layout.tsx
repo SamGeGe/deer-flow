@@ -30,7 +30,20 @@ const geist = Geist({
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const conf = await loadConfig();
+  // In Docker environment, skip server-side config loading to avoid connection issues
+  // Config will be loaded on the client side instead
+  let conf = {};
+  
+  // Only load config on server-side in development mode (non-Docker)
+  if (process.env.NODE_ENV === 'development' && !process.env.DOCKER_ENV) {
+    try {
+      conf = await loadConfig();
+    } catch (error) {
+      console.warn('Failed to load config on server-side:', error);
+      conf = {};
+    }
+  }
+  
   return (
     <html lang="en" className={`${geist.variable}`} suppressHydrationWarning>
       <head>

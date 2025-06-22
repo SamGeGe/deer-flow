@@ -4,10 +4,10 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: deer-flow-backend
-    env_file:
-      - .env
     volumes:
       - ./conf.yaml:/app/conf.yaml
+    ports:
+      - "8000:8000"
     restart: unless-stopped
     networks:
       - deer-flow-network
@@ -17,14 +17,16 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
+        - NODE_ENV=production
+        - SKIP_ENV_VALIDATION=true
     container_name: deer-flow-frontend
     ports:
       - "4051:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=
-    env_file:
-      - .env
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=production
+      - SKIP_ENV_VALIDATION=true
     depends_on:
       - backend
     restart: unless-stopped

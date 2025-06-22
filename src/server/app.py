@@ -421,7 +421,15 @@ async def rag_resources(request: Annotated[RAGResourceRequest, Query()]):
 @app.get("/api/config", response_model=ConfigResponse)
 async def config():
     """Get the config of the server."""
+    configured_models = get_configured_llm_models()
+    
+    # Ensure all expected model types are present, even if empty
+    models = {
+        "basic": configured_models.get("basic", []),
+        "reasoning": configured_models.get("reasoning", []),
+    }
+    
     return ConfigResponse(
         rag=RAGConfigResponse(provider=SELECTED_RAG_PROVIDER),
-        models=get_configured_llm_models(),
+        models=models,
     )

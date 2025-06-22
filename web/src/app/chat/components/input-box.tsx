@@ -52,7 +52,15 @@ export function InputBox({
   const backgroundInvestigation = useSettingsStore(
     (state) => state.general.enableBackgroundInvestigation,
   );
-  const reasoningModel = useMemo(() => getConfig().models.reasoning?.[0], []);
+  const reasoningModel = useMemo(() => {
+    try {
+      const config = getConfig();
+      return config.models.reasoning?.[0] || null;
+    } catch (error) {
+      console.warn('Failed to get reasoning model config:', error);
+      return null;
+    }
+  }, []);
   const reportStyle = useSettingsStore((state) => state.general.reportStyle);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<MessageInputRef>(null);
