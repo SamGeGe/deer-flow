@@ -13,6 +13,8 @@ import { env } from "~/env";
 
 import { Toaster } from "../components/deer-flow/toaster";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "🦌 DeerFlow",
   description:
