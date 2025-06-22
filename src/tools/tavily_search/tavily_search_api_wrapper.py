@@ -91,23 +91,36 @@ class EnhancedTavilySearchAPIWrapper(OriginalTavilySearchAPIWrapper):
         results = raw_results["results"]
         """Clean results from Tavily Search API."""
         clean_results = []
+        max_content_length = 2000  # 限制每个结果的内容长度
+        
         for result in results:
+            # 截断内容以控制长度
+            content = result["content"]
+            if len(content) > max_content_length:
+                content = content[:max_content_length] + "..."
+            
             clean_result = {
                 "type": "page",
                 "title": result["title"],
                 "url": result["url"],
-                "content": result["content"],
+                "content": content,
                 "score": result["score"],
             }
+            
+            # 如果有原始内容，也要截断
             if raw_content := result.get("raw_content"):
+                if len(raw_content) > max_content_length:
+                    raw_content = raw_content[:max_content_length] + "..."
                 clean_result["raw_content"] = raw_content
             clean_results.append(clean_result)
-        images = raw_results["images"]
+        
+        # 限制图片数量以减少 token 使用
+        images = raw_results.get("images", [])[:3]  # 最多返回3张图片
         for image in images:
             clean_result = {
                 "type": "image",
                 "image_url": image["url"],
-                "image_description": image["description"],
+                "image_description": image.get("description", "")[:200] + "..." if len(image.get("description", "")) > 200 else image.get("description", ""),
             }
             clean_results.append(clean_result)
         return clean_results

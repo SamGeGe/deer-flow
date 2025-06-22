@@ -13,14 +13,24 @@ export function resolveServiceURL(path: string) {
       absoluteUrl += "/";
     }
     
-    // Ensure path starts with api/ if it doesn't already
-    const apiPath = path.startsWith('api/') ? path : `api/${path.startsWith('/') ? path.substring(1) : path}`;
+    // Clean up the path - remove leading dots, slashes, and api prefixes
+    let cleanPath = path;
     
-    return new URL(apiPath, absoluteUrl).toString();
+    // Remove leading "./" or "/"
+    cleanPath = cleanPath.replace(/^\.?\//, '');
+    
+    // Remove "api/" prefix if it exists (since our base URL already includes /api)
+    cleanPath = cleanPath.replace(/^api\//, '');
+    
+    return new URL(cleanPath, absoluteUrl).toString();
   }
 
   // Otherwise, default to a relative path. This works when the web server
   // serves the frontend and proxies API requests from the same port.
-  const relativePath = `/api/${path.startsWith('/') ? path.substring(1) : path}`;
-  return relativePath;
+  let cleanPath = path;
+  cleanPath = cleanPath.replace(/^\.?\//, '');
+  if (!cleanPath.startsWith('api/')) {
+    cleanPath = `api/${cleanPath}`;
+  }
+  return `/${cleanPath}`;
 }
