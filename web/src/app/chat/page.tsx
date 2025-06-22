@@ -4,7 +4,7 @@
 "use client";
 
 import { GithubOutlined } from "@ant-design/icons";
-import dynamic from "next/dynamic";
+import dynamicNext from "next/dynamic";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -18,7 +18,7 @@ import { SettingsDialog } from "../settings/dialogs/settings-dialog";
 // This is the line we are adding to fix the build issue.
 export const dynamic = "force-dynamic";
 
-const Main = dynamic(() => import("./main"), {
+const Main = dynamicNext(() => import("./main"), {
   ssr: false,
   loading: () => (
     <div className="flex h-full w-full items-center justify-center">
