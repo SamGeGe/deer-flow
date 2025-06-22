@@ -21,8 +21,19 @@ def crawl_tool(
     try:
         crawler = Crawler()
         article = crawler.crawl(url)
-        return {"url": url, "crawled_content": article.to_markdown()[:1000]}
-    except BaseException as e:
-        error_msg = f"Failed to crawl. Error: {repr(e)}"
+        if article and hasattr(article, 'to_markdown'):
+            content = article.to_markdown()
+            if content:
+                return f"URL: {url}\n\nContent:\n{content[:2000]}"
+            else:
+                return f"URL: {url}\n\nContent: [Empty content extracted]"
+        else:
+            return f"URL: {url}\n\nContent: [Failed to extract article content]"
+    except IndexError as e:
+        error_msg = f"Failed to crawl {url}. IndexError: {str(e)} - This may be due to malformed HTML or parsing issues."
+        logger.error(error_msg)
+        return error_msg
+    except Exception as e:
+        error_msg = f"Failed to crawl {url}. Error: {str(e)}"
         logger.error(error_msg)
         return error_msg

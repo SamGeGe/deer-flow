@@ -105,7 +105,7 @@ class TavilySearchResultsWithImages(TavilySearchResults):  # type: ignore[overri
         self,
         query: str,
         run_manager: Optional[CallbackManagerForToolRun] = None,
-    ) -> Tuple[Union[List[Dict[str, str]], str], Dict]:
+    ) -> str:
         """Use the tool."""
         # TODO: remove try/except, should be handled by BaseTool
         try:
@@ -120,17 +120,22 @@ class TavilySearchResultsWithImages(TavilySearchResults):  # type: ignore[overri
                 self.include_images,
                 self.include_image_descriptions,
             )
+            if not raw_results:
+                return json.dumps([], ensure_ascii=False)
+                
+            cleaned_results = self.api_wrapper.clean_results_with_images(raw_results)
+            if not cleaned_results:
+                return json.dumps([], ensure_ascii=False)
+                
+            return json.dumps(cleaned_results, ensure_ascii=False)
         except Exception as e:
-            return repr(e), {}
-        cleaned_results = self.api_wrapper.clean_results_with_images(raw_results)
-        print("sync", json.dumps(cleaned_results, indent=2, ensure_ascii=False))
-        return cleaned_results, raw_results
+            return json.dumps({"error": str(e)}, ensure_ascii=False)
 
     async def _arun(
         self,
         query: str,
         run_manager: Optional[AsyncCallbackManagerForToolRun] = None,
-    ) -> Tuple[Union[List[Dict[str, str]], str], Dict]:
+    ) -> str:
         """Use the tool asynchronously."""
         try:
             raw_results = await self.api_wrapper.raw_results_async(
@@ -144,8 +149,13 @@ class TavilySearchResultsWithImages(TavilySearchResults):  # type: ignore[overri
                 self.include_images,
                 self.include_image_descriptions,
             )
+            if not raw_results:
+                return json.dumps([], ensure_ascii=False)
+                
+            cleaned_results = self.api_wrapper.clean_results_with_images(raw_results)
+            if not cleaned_results:
+                return json.dumps([], ensure_ascii=False)
+                
+            return json.dumps(cleaned_results, ensure_ascii=False)
         except Exception as e:
-            return repr(e), {}
-        cleaned_results = self.api_wrapper.clean_results_with_images(raw_results)
-        print("async", json.dumps(cleaned_results, indent=2, ensure_ascii=False))
-        return cleaned_results, raw_results
+            return json.dumps({"error": str(e)}, ensure_ascii=False)

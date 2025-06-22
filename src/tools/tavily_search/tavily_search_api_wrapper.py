@@ -88,23 +88,32 @@ class EnhancedTavilySearchAPIWrapper(OriginalTavilySearchAPIWrapper):
     def clean_results_with_images(
         self, raw_results: Dict[str, List[Dict]]
     ) -> List[Dict]:
-        results = raw_results["results"]
         """Clean results from Tavily Search API."""
+        if not raw_results or "results" not in raw_results:
+            return []
+            
+        results = raw_results["results"]
+        if not results:
+            return []
+            
         clean_results = []
         max_content_length = 2000  # 限制每个结果的内容长度
         
         for result in results:
+            if not result:
+                continue
+                
             # 截断内容以控制长度
-            content = result["content"]
-            if len(content) > max_content_length:
+            content = result.get("content", "")
+            if content and len(content) > max_content_length:
                 content = content[:max_content_length] + "..."
             
             clean_result = {
                 "type": "page",
-                "title": result["title"],
-                "url": result["url"],
+                "title": result.get("title", ""),
+                "url": result.get("url", ""),
                 "content": content,
-                "score": result["score"],
+                "score": result.get("score", 0),
             }
             
             # 如果有原始内容，也要截断
@@ -115,12 +124,22 @@ class EnhancedTavilySearchAPIWrapper(OriginalTavilySearchAPIWrapper):
             clean_results.append(clean_result)
         
         # 限制图片数量以减少 token 使用
-        images = raw_results.get("images", [])[:3]  # 最多返回3张图片
-        for image in images:
-            clean_result = {
-                "type": "image",
-                "image_url": image["url"],
-                "image_description": image.get("description", "")[:200] + "..." if len(image.get("description", "")) > 200 else image.get("description", ""),
-            }
-            clean_results.append(clean_result)
+        images = raw_results.get("images", [])
+        if images:
+            images = images[:3]  # 最多返回3张图片
+            for image in images:
+                if not image or not isinstance(image, dict):
+                    continue
+                
+                # 安全获取图片描述
+                description = image.get("description", "")
+                if description and len(description) > 200:
+                    description = description[:200] + "..."
+                
+                clean_result = {
+                    "type": "image",
+                    "image_url": image.get("url", ""),
+                    "image_description": description,
+                }
+                clean_results.append(clean_result)
         return clean_results
