@@ -141,25 +141,31 @@ async def _astream_workflow_generator(
     ):
         try:
             # 新增：根据 agent 推送 progress/activity
-            if isinstance(agent, (list, tuple)) and len(agent) > 0:
-                agent_name = agent[0].split(":")[0]
-            else:
-                agent_name = str(agent)
-            progress_map = {
-                "coordinator": "正在分析你的问题...",
-                "background_investigator": "正在调用搜索引擎获取资料...",
-                "planner": "正在生成研究计划...",
-                "research_team": "研究团队正在协作...",
-                "researcher": "正在查找和整理资料...",
-                "coder": "正在分析和生成代码...",
-                "reporter": "正在撰写最终报告...",
-                "human_feedback": "等待用户反馈...",
-            }
-            if agent_name in progress_map and progress_map[agent_name]:
-                yield _make_event(
-                    "activity",
-                    {"activity": progress_map[agent_name]},
-                )
+            agent_name = None
+            try:
+                if isinstance(agent, (list, tuple)) and len(agent) > 0:
+                    agent_name = str(agent[0]).split(":")[0]
+                elif agent:
+                    agent_name = str(agent).split(":")[0]
+            except (IndexError, AttributeError):
+                agent_name = None
+                
+            if agent_name:
+                progress_map = {
+                    "coordinator": "正在分析你的问题...",
+                    "background_investigator": "正在调用搜索引擎获取资料...",
+                    "planner": "正在生成研究计划...",
+                    "research_team": "研究团队正在协作...",
+                    "researcher": "正在查找和整理资料...",
+                    "coder": "正在分析和生成代码...",
+                    "reporter": "正在撰写最终报告...",
+                    "human_feedback": "等待用户反馈...",
+                }
+                if agent_name in progress_map and progress_map[agent_name]:
+                    yield _make_event(
+                        "activity",
+                        {"activity": progress_map[agent_name]},
+                    )
             if isinstance(event_data, dict):
                 if "__interrupt__" in event_data:
                     yield _make_event(
@@ -182,7 +188,7 @@ async def _astream_workflow_generator(
             )
             event_stream_message: dict[str, any] = {
                 "thread_id": thread_id,
-                "agent": agent[0].split(":")[0],
+                "agent": agent_name or "unknown",
                 "id": message_chunk.id,
                 "role": "assistant",
                 "content": message_chunk.content,
@@ -219,14 +225,30 @@ async def _astream_workflow_generator(
                     yield _make_event("message_chunk", event_stream_message)
         except Exception as e:
             logger.error(f"Error in chat stream: {e}", exc_info=True)
-            yield _make_event("error", {"detail": INTERNAL_SERVER_ERROR_DETAIL})
-            break
+            # 发送错误事件但不中断流
+            yield _make_event("error", {
+                "detail": f"Stream error: {str(e)[:100]}...",
+                "agent": agent_name or "unknown"
+            })
+            # 继续处理下一个事件，而不是中断整个流
 
 
 def _make_event(event_type: str, data: dict[str, any]):
-    if data.get("content") == "":
-        data.pop("content")
-    return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+    try:
+        if data.get("content") == "":
+            data.pop("content")
+        # 确保数据可以被JSON序列化
+        json_data = json.dumps(data, ensure_ascii=False, default=str)
+        return f"event: {event_type}\ndata: {json_data}\n\n"
+    except Exception as e:
+        logger.error(f"Error serializing event data: {e}")
+        # 返回一个安全的错误事件
+        safe_data = {
+            "error": "Event serialization failed",
+            "event_type": event_type,
+            "detail": str(e)[:100]
+        }
+        return f"event: error\ndata: {json.dumps(safe_data, ensure_ascii=False)}\n\n"
 
 
 @app.post("/api/tts")
