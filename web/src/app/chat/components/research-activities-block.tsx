@@ -39,33 +39,47 @@ export function ResearchActivitiesBlock({
 }) {
   const activityIds = useStore((state) =>
     state.researchActivityIds.get(researchId),
-  )!;
+  ) || [];
   const ongoing = useStore((state) => state.ongoingResearchId === researchId);
+
+  // 只过滤掉无效 id，message 相关逻辑交给子组件
+  const filteredIds = activityIds.filter((id) => typeof id === "string" && id);
+
   return (
     <>
       <ul className={cn("flex flex-col py-4", className)}>
-        {activityIds.map(
-          (activityId, i) =>
-            i !== 0 && (
-              <motion.li
-                key={activityId}
-                style={{ transition: "all 0.4s ease-out" }}
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.4,
-                  ease: "easeOut",
-                }}
-              >
-                <ActivityMessage messageId={activityId} />
-                <ActivityListItem messageId={activityId} />
-                {i !== activityIds.length - 1 && <hr className="my-8" />}
-              </motion.li>
-            ),
-        )}
+        {filteredIds.map((activityId, i) => (
+          <ActivityListItemWrapper
+            key={activityId}
+            activityId={activityId}
+            isLast={i === filteredIds.length - 1}
+          />
+        ))}
       </ul>
       {ongoing && <LoadingAnimation className="mx-4 my-12" />}
     </>
+  );
+}
+
+// 新增包装组件，内部安全调用 useMessage
+function ActivityListItemWrapper({ activityId, isLast }: { activityId: string; isLast: boolean }) {
+  const message = useMessage(activityId);
+  if (!message || !message.content || message.content.trim() === "") return null;
+  return (
+    <motion.li
+      key={activityId}
+      style={{ transition: "all 0.4s ease-out" }}
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.4,
+        ease: "easeOut",
+      }}
+    >
+      <ActivityMessage messageId={activityId} />
+      <ActivityListItem messageId={activityId} />
+      {!isLast && <hr className="my-8" />}
+    </motion.li>
   );
 }
 

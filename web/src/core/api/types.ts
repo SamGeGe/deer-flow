@@ -76,9 +76,18 @@ export interface InterruptEvent
     }
   > {}
 
+export interface ActivityEvent
+  extends GenericEvent<
+    "activity",
+    {
+      activity: string;
+    }
+  > {}
+
 export type ChatEvent =
   | MessageChunkEvent
   | ToolCallsEvent
   | ToolCallChunksEvent
   | ToolCallResultEvent
-  | InterruptEvent;
+  | InterruptEvent
+  | ActivityEvent;

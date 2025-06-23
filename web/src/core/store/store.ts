@@ -120,27 +120,44 @@ export async function sendMessage(
   let messageId: string | undefined;
   try {
     for await (const event of stream) {
-      const { type, data } = event;
-      messageId = data.id;
+      const chatEvent = event as import("../api/types").ChatEvent;
+      const { type, data } = chatEvent;
+      const safeMessageId = String((data as any).id ?? '');
+      messageId = safeMessageId;
       let message: Message | undefined;
-      if (type === "tool_call_result") {
-        message = findMessageByToolCallId(data.tool_call_id);
-      } else if (!existsMessage(messageId)) {
+      if (type === "activity") {
+        // 兼容后端 activity 事件，推送到 activities 区域
+        const activity = (data as any).activity ?? "";
+        const activityMessage: Message = {
+          id: nanoid(),
+          threadId: String(THREAD_ID ?? ''),
+          agent: (data as any).agent || undefined,
+          role: "assistant",
+          content: activity,
+          contentChunks: [activity],
+        };
+        if (activityMessage && typeof activityMessage.id === 'string' && typeof activityMessage.threadId === 'string') {
+          appendResearchActivity(activityMessage as Message);
+        }
+        continue;
+      } else if (type === "tool_call_result") {
+        message = findMessageByToolCallId(String(data.tool_call_id ?? ''));
+      } else if (!existsMessage(safeMessageId)) {
         message = {
-          id: messageId,
-          threadId: data.thread_id,
+          id: safeMessageId,
+          threadId: String(data.thread_id ?? ''),
           agent: data.agent,
           role: data.role,
-          content: "",
+          content: '',
           contentChunks: [],
-          reasoningContent: "",
+          reasoningContent: '',
           reasoningContentChunks: [],
           isStreaming: true,
           interruptFeedback,
         };
         appendMessage(message);
       }
-      message ??= getMessage(messageId);
+      message ??= getMessage(safeMessageId);
       if (message) {
         message = mergeMessage(message, event);
         updateMessage(message);

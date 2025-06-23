@@ -140,6 +140,26 @@ async def _astream_workflow_generator(
         subgraphs=True,
     ):
         try:
+            # 新增：根据 agent 推送 progress/activity
+            if isinstance(agent, (list, tuple)) and len(agent) > 0:
+                agent_name = agent[0].split(":")[0]
+            else:
+                agent_name = str(agent)
+            progress_map = {
+                "coordinator": "正在分析你的问题...",
+                "background_investigator": "正在调用搜索引擎获取资料...",
+                "planner": "正在生成研究计划...",
+                "research_team": "研究团队正在协作...",
+                "researcher": "正在查找和整理资料...",
+                "coder": "正在分析和生成代码...",
+                "reporter": "正在撰写最终报告...",
+                "human_feedback": "等待用户反馈...",
+            }
+            if agent_name in progress_map and progress_map[agent_name]:
+                yield _make_event(
+                    "activity",
+                    {"activity": progress_map[agent_name]},
+                )
             if isinstance(event_data, dict):
                 if "__interrupt__" in event_data:
                     yield _make_event(

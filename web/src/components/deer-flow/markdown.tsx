@@ -36,28 +36,41 @@ export function Markdown({
   animated?: boolean;
   checkLinkCredibility?: boolean;
 }) {
+  // 自动分段长文本
+  function autoParagraph(text: string) {
+    // 每隔120字符加一个换行，避免一大坨文字
+    return text.replace(/(.{120})/g, "$1\n");
+  }
+
   const components: ReactMarkdownOptions["components"] = useMemo(() => {
     return {
       a: ({ href, children }) => (
-        <Link href={href} checkLinkCredibility={checkLinkCredibility}>
-          {children}
-        </Link>
+        <span className="reference-link">
+          <Link href={href} checkLinkCredibility={checkLinkCredibility}>
+            {children}
+          </Link>
+        </span>
       ),
-      img: ({ src, alt }) => {
-        const srcStr = String(src ?? "");
-        let fullSrc = srcStr;
-        // if src is not an absolute url, resolve it with the service url
-        if (!srcStr.startsWith("http")) {
-          fullSrc = resolveServiceURL(
-            srcStr.startsWith("/") ? srcStr : `/${srcStr}`,
-          ).toString();
+      code: ({ className, children, ...props }) => {
+        // 针对 LaTeX 公式块
+        if (className?.includes("language-math")) {
+          return <div className="latex-block">{children}</div>;
         }
-        return (
-          <a href={fullSrc} target="_blank" rel="noopener noreferrer">
-            <Image className="rounded" src={fullSrc} alt={alt ?? ""} />
-          </a>
-        );
+        // 普通代码块
+        return <code className={cn(className, "code-block")} {...props}>{children}</code>;
       },
+      blockquote: ({ children }) => (
+        <blockquote className="reference-list">{children}</blockquote>
+      ),
+      p: ({ children }) => {
+        // 对长文本自动分段
+        if (typeof children === "string") {
+          return <p>{autoParagraph(children)}</p>;
+        }
+        return <p>{children}</p>;
+      },
+      ul: ({ children }) => <ul className="reference-list">{children}</ul>,
+      ol: ({ children }) => <ol className="reference-list">{children}</ol>,
     };
   }, [checkLinkCredibility]);
 
@@ -69,6 +82,34 @@ export function Markdown({
   }, [animated]);
   return (
     <div className={cn(className, "prose dark:prose-invert")} style={style}>
+      <style>{`
+        .latex-block {
+          background: #f8f8ff;
+          border-left: 4px solid #b3b3ff;
+          padding: 8px 16px;
+          margin: 12px 0;
+          font-size: 1.1em;
+          text-align: center;
+          overflow-x: auto;
+        }
+        .reference-list {
+          color: #666;
+          font-size: 0.95em;
+          margin-left: 1em;
+          border-left: 2px solid #eee;
+          padding-left: 1em;
+        }
+        .reference-link {
+          color: #1a0dab;
+          word-break: break-all;
+        }
+        .code-block {
+          background: #f5f5f5;
+          color: #c7254e;
+          border-radius: 4px;
+          padding: 2px 6px;
+        }
+      `}</style>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={rehypePlugins}
