@@ -45,7 +45,7 @@ export async function* chatStream(
     return yield* chatReplayStream(userMessage, params, options);
   
   try{
-    const stream = fetchStream(resolveServiceURL("chat/stream"), {
+    const stream = fetchStream(resolveServiceURL("chat/stream").toString(), {
       body: JSON.stringify({
         messages: [{ role: "user", content: userMessage }],
         ...params,

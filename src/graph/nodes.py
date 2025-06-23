@@ -50,32 +50,61 @@ def background_investigation_node(state: State, config: RunnableConfig):
     configurable = Configuration.from_runnable_config(config)
     query = state.get("research_topic")
     background_investigation_results = None
-    if SELECTED_SEARCH_ENGINE == SearchEngine.TAVILY.value:
-        searched_content = LoggedTavilySearch(
-            max_results=configurable.max_search_results
-        ).invoke(query)
-        if isinstance(searched_content, list):
-            background_investigation_results = [
-                f"## {elem['title']}\n\n{elem['content']}" for elem in searched_content
-            ]
-            return {
-                "background_investigation_results": "\n\n".join(
-                    background_investigation_results
+    
+    try:
+        if SELECTED_SEARCH_ENGINE == SearchEngine.TAVILY.value:
+            searched_content = LoggedTavilySearch(
+                max_results=configurable.max_search_results
+            ).invoke(query)
+            
+            # Handle the search result properly
+            if isinstance(searched_content, str):
+                # If it's a JSON string, try to parse it
+                try:
+                    import json
+                    parsed_content = json.loads(searched_content)
+                    if isinstance(parsed_content, list):
+                        background_investigation_results = [
+                            f"## {elem['title']}\n\n{elem['content']}" for elem in parsed_content
+                        ]
+                    else:
+                        background_investigation_results = [searched_content]
+                except json.JSONDecodeError:
+                    background_investigation_results = [searched_content]
+            elif isinstance(searched_content, list):
+                background_investigation_results = [
+                    f"## {elem['title']}\n\n{elem['content']}" for elem in searched_content
+                ]
+            else:
+                logger.error(
+                    f"Tavily search returned unexpected response type: {type(searched_content)}"
                 )
-            }
+                background_investigation_results = [str(searched_content)]
+                
         else:
-            logger.error(
-                f"Tavily search returned malformed response: {searched_content}"
-            )
-    else:
-        background_investigation_results = get_web_search_tool(
-            configurable.max_search_results
-        ).invoke(query)
-    return {
-        "background_investigation_results": json.dumps(
-            background_investigation_results, ensure_ascii=False
-        )
-    }
+            search_result = get_web_search_tool(
+                configurable.max_search_results
+            ).invoke(query)
+            background_investigation_results = search_result if isinstance(search_result, list) else [str(search_result)]
+            
+        # Ensure we have a valid result
+        if background_investigation_results:
+            if isinstance(background_investigation_results, list):
+                result_content = "\n\n".join(background_investigation_results)
+            else:
+                result_content = str(background_investigation_results)
+        else:
+            result_content = f"Background investigation completed for: {query}"
+            
+        return {
+            "background_investigation_results": result_content
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in background investigation: {e}")
+        return {
+            "background_investigation_results": f"Background investigation encountered an error for: {query}"
+        }
 
 
 def planner_node(

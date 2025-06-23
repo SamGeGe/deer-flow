@@ -50,7 +50,7 @@ export function Markdown({
         if (!srcStr.startsWith("http")) {
           fullSrc = resolveServiceURL(
             srcStr.startsWith("/") ? srcStr : `/${srcStr}`,
-          );
+          ).toString();
         }
         return (
           <a href={fullSrc} target="_blank" rel="noopener noreferrer">

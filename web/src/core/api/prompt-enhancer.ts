@@ -16,7 +16,7 @@ export interface EnhancePromptResponse {
 export async function enhancePrompt(
   request: EnhancePromptRequest,
 ): Promise<string> {
-  const response = await fetch(resolveServiceURL("prompt/enhance"), {
+  const response = await fetch(resolveServiceURL("prompt/enhance").toString(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

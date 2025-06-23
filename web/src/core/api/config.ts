@@ -9,10 +9,13 @@ declare global {
 }
 
 export async function loadConfig() {
-  const res = await fetch(resolveServiceURL("./api/config"));
+  const res = await fetch(resolveServiceURL("config").toString());
   const config = await res.json();
   return config;
 }
+
+// Flag to prevent multiple simultaneous config loads
+let isLoadingConfig = false;
 
 export function getConfig(): DeerFlowConfig {
   if (typeof window === "undefined") {
@@ -25,17 +28,22 @@ export function getConfig(): DeerFlowConfig {
   
   // Client-side: try to get config from window, if not available, load it
   if (typeof window.__deerflowConfig === "undefined" || !window.__deerflowConfig.models) {
-    // If config is not loaded or incomplete, load it asynchronously
-    loadConfig().then(config => {
-      window.__deerflowConfig = config;
-    }).catch(error => {
-      console.warn('Failed to load config:', error);
-      // Set default config on error
-      window.__deerflowConfig = {
-        rag: { provider: null },
-        models: { basic: [], reasoning: [] }
-      };
-    });
+    // Only load config if not already loading
+    if (!isLoadingConfig) {
+      isLoadingConfig = true;
+      loadConfig().then(config => {
+        window.__deerflowConfig = config;
+        isLoadingConfig = false;
+      }).catch(error => {
+        console.warn('Failed to load config:', error);
+        // Set default config on error
+        window.__deerflowConfig = {
+          rag: { provider: null },
+          models: { basic: [], reasoning: [] }
+        };
+        isLoadingConfig = false;
+      });
+    }
     
     // Return default config while loading
     return {
