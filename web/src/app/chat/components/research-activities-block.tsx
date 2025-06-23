@@ -66,20 +66,20 @@ function ActivityListItemWrapper({ activityId, isLast }: { activityId: string; i
   const message = useMessage(activityId);
   if (!message || !message.content || message.content.trim() === "") return null;
   return (
-    <motion.li
-      key={activityId}
-      style={{ transition: "all 0.4s ease-out" }}
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.4,
-        ease: "easeOut",
-      }}
-    >
-      <ActivityMessage messageId={activityId} />
-      <ActivityListItem messageId={activityId} />
+              <motion.li
+                key={activityId}
+                style={{ transition: "all 0.4s ease-out" }}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.4,
+                  ease: "easeOut",
+                }}
+              >
+                <ActivityMessage messageId={activityId} />
+                <ActivityListItem messageId={activityId} />
       {!isLast && <hr className="my-8" />}
-    </motion.li>
+              </motion.li>
   );
 }
 

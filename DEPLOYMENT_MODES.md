@@ -1,6 +1,57 @@
 # DeerFlow 部署模式说明
 
-DeerFlow 支持两种独立的部署模式，每种模式使用不同的端口和配置，可以独立使用而不互相冲突。
+DeerFlow 支持多种部署模式，适用于不同的使用场景和操作系统。
+
+## 🐧 Linux 一键部署 (推荐)
+
+适用于 Linux 服务器快速部署，支持 Ubuntu/Debian/CentOS/RHEL 等主流发行版。
+
+### 快速开始
+
+```bash
+# 1. 复制项目到Linux服务器
+scp -r deer-flow/ user@your-server:/path/to/destination/
+
+# 2. 登录服务器并进入项目目录
+ssh user@your-server
+cd /path/to/destination/deer-flow
+
+# 3. 运行一键部署脚本
+./deploy-linux.sh
+```
+
+### 部署特性
+
+- ✅ **自动检测系统**：支持 Ubuntu/Debian/CentOS/RHEL
+- ✅ **自动安装依赖**：Docker、Docker Compose
+- ✅ **智能配置**：自动创建 .env 文件和配置
+- ✅ **防火墙配置**：自动开放必要端口
+- ✅ **服务监控**：检查部署状态和服务健康
+- ✅ **Nginx反向代理**：统一入口，IP变化无需修改配置
+
+### 访问地址
+
+- **前端界面**：`http://服务器IP:4051`
+- **管理命令**：
+  ```bash
+  docker compose ps          # 查看状态
+  docker compose logs -f     # 查看日志
+  docker compose restart     # 重启服务
+  docker compose down        # 停止服务
+  ```
+
+### 系统要求
+
+- **操作系统**：Ubuntu 18.04+, Debian 10+, CentOS 7+, RHEL 7+
+- **内存**：最少 2GB，推荐 4GB+
+- **存储**：最少 5GB 可用空间
+- **网络**：需要访问 Docker Hub 和 GitHub
+
+---
+
+## 💻 本地部署模式
+
+DeerFlow 支持两种独立的本地部署模式，每种模式使用不同的端口和配置，可以独立使用而不互相冲突。
 
 ## 🚀 模式对比
 

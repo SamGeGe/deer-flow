@@ -46,9 +46,9 @@ export function Markdown({
     return {
       a: ({ href, children }) => (
         <span className="reference-link">
-          <Link href={href} checkLinkCredibility={checkLinkCredibility}>
-            {children}
-          </Link>
+        <Link href={href} checkLinkCredibility={checkLinkCredibility}>
+          {children}
+        </Link>
         </span>
       ),
       code: ({ className, children, ...props }) => {

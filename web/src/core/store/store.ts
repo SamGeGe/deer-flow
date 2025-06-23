@@ -137,7 +137,12 @@ export async function sendMessage(
           contentChunks: [activity],
         };
         if (activityMessage && typeof activityMessage.id === 'string' && typeof activityMessage.threadId === 'string') {
-          appendResearchActivity(activityMessage as Message);
+          // 只有在已经有研究会话的情况下才添加 activity（即用户已经确认开始研究）
+          const currentResearchId = getOngoingResearchId();
+          if (currentResearchId) {
+            appendResearchActivity(activityMessage as Message);
+          }
+          // 如果没有研究会话，暂时忽略这些 activity 事件，等用户确认后再开始显示
         }
         continue;
       } else if (type === "tool_call_result") {

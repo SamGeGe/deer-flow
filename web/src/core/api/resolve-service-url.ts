@@ -23,6 +23,14 @@ export function resolveServiceURL(path: string): URL {
   // Priority 1: Use the explicit environment variable.
   if (process.env.NEXT_PUBLIC_API_URL) {
     baseUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    // 如果是相对路径（如 "/api"），需要构造完整URL
+    if (baseUrl.startsWith('/') && typeof window !== 'undefined') {
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      const port = window.location.port;
+      baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}${baseUrl}`;
+    }
   }
   // Priority 2: Fallback for browser environment during local development.
   else if (typeof window !== 'undefined') {
@@ -47,7 +55,7 @@ export function resolveServiceURL(path: string): URL {
   cleanPath = cleanPath.replace(/^\./, '');
   cleanPath = cleanPath.replace(/^\//, '');
   cleanPath = cleanPath.replace(/^api\//, '');
-
+  
   // 只在 baseUrl 没有 /api 时加 /api/ 前缀
   if (!baseEndsWithApi) {
     cleanPath = '/api/' + cleanPath;

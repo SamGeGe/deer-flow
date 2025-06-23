@@ -55,6 +55,27 @@ In this demo, we showcase how to use DeerFlow to:
 
 ## Quick Start
 
+### 🐧 Linux Server Deployment (Recommended)
+
+For Linux servers, use our one-click deployment script:
+
+```bash
+# Clone the repository
+git clone https://github.com/bytedance/deer-flow.git
+cd deer-flow
+
+# Run one-click deployment (supports Ubuntu/Debian/CentOS/RHEL)
+./deploy-linux.sh
+```
+
+**Access:** `http://your-server-ip:4051`
+
+📖 **Detailed Guide:** [Linux Deployment README](README-LINUX.md)
+
+---
+
+### 💻 Local Development
+
 DeerFlow is developed in Python, and comes with a web UI written in Node.js. To ensure a smooth setup process, we recommend using the following tools:
 
 ### Recommended Tools
