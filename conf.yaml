@@ -1,0 +1,27 @@
+# [!NOTE]
+# Read the `docs/configuration_guide.md` carefully, and update the
+# configurations to match your specific settings and requirements.
+# - Replace `api_key` with your own credentials.
+# - Replace `base_url` and `model` name if you want to use a custom model.
+# - A restart is required every time you change the `config.yaml` file.
+
+
+BASIC_MODEL:
+  base_url: https://openrouter.ai/api/v1
+  model: "qwen/qwen3-235b-a22b"
+  api_key: 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
+
+
+#BASIC_MODEL:
+#  base_url: http://192.168.3.88:8000/v1
+#  model: "qwq32b-q8"
+#  api_key: sk-fake   # 如果不填会报错就写 sk-fake，没影响
+
+# Reasoning model is optional.
+# Uncomment the following settings if you want to use reasoning model
+# for planning.
+
+# REASONING_MODEL:
+#   base_url: https://ark-cn-beijing.bytedance.net/api/v3
+#   model: "doubao-1-5-thinking-pro-m-250428"
+#   api_key: xxxx
