@@ -216,7 +216,7 @@ export function InputBox({
         />
       </div>
       <div className="flex items-center px-4 py-2">
-        <div className="flex grow gap-2">
+        <div className="flex grow gap-2 flex-wrap">
           {reasoningModel && (
             <Tooltip
               className="max-w-60"
@@ -234,15 +234,18 @@ export function InputBox({
             >
               <Button
                 className={cn(
-                  "rounded-2xl",
+                  "rounded-2xl text-xs md:text-sm",
                   enableDeepThinking && "!border-brand !text-brand",
                 )}
                 variant="outline"
+                size="sm"
                 onClick={() => {
                   setEnableDeepThinking(!enableDeepThinking);
                 }}
               >
-                <Lightbulb /> 深度思考
+                <Lightbulb className="h-3 w-3 md:h-4 md:w-4" /> 
+                <span className="hidden sm:inline">深度思考</span>
+                <span className="sm:hidden">思考</span>
               </Button>
             </Tooltip>
           )}
@@ -263,38 +266,41 @@ export function InputBox({
           >
             <Button
               className={cn(
-                "rounded-2xl",
+                "rounded-2xl text-xs md:text-sm",
                 backgroundInvestigation && "!border-brand !text-brand",
               )}
               variant="outline"
+              size="sm"
               onClick={() => {
                 setEnableBackgroundInvestigation(!backgroundInvestigation);
               }}
             >
-              <Detective /> 调查
+              <Detective className="h-3 w-3 md:h-4 md:w-4" /> 
+              <span className="hidden sm:inline">调查</span>
+              <span className="sm:hidden">调查</span>
             </Button>
           </Tooltip>
 
           <ReportStyleDialog />
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 ml-2">
           <Tooltip title={isEnhancing ? "正在增强..." : "使用 AI 增强提示"}>
             <Button
               variant="ghost"
               size="icon"
               className={cn(
-                "hover:bg-accent h-10 w-10",
+                "hover:bg-accent h-8 w-8 md:h-10 md:w-10",
                 isEnhancing && "animate-pulse",
               )}
               onClick={handleEnhancePrompt}
               disabled={isEnhancing || currentPrompt.trim() === ""}
             >
               {isEnhancing ? (
-                <div className="flex h-10 w-10 items-center justify-center">
-                  <div className="bg-foreground h-3 w-3 animate-bounce rounded-full opacity-70" />
+                <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center">
+                  <div className="bg-foreground h-2 w-2 md:h-3 md:w-3 animate-bounce rounded-full opacity-70" />
                 </div>
               ) : (
-                <MagicWandIcon className="text-brand" />
+                <MagicWandIcon className="text-brand h-4 w-4" />
               )}
             </Button>
           </Tooltip>
@@ -302,15 +308,15 @@ export function InputBox({
             <Button
               variant="outline"
               size="icon"
-              className={cn("h-10 w-10 rounded-full")}
+              className={cn("h-8 w-8 md:h-10 md:w-10 rounded-full")}
               onClick={() => inputRef.current?.submit()}
             >
               {responding ? (
-                <div className="flex h-10 w-10 items-center justify-center">
-                  <div className="bg-foreground h-4 w-4 rounded-sm opacity-70" />
+                <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center">
+                  <div className="bg-foreground h-3 w-3 md:h-4 md:w-4 rounded-sm opacity-70" />
                 </div>
               ) : (
-                <ArrowUp />
+                <ArrowUp className="h-4 w-4" />
               )}
             </Button>
           </Tooltip>

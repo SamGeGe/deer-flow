@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { Check, Copy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import ReactMarkdown, {
   type Options as ReactMarkdownOptions,
 } from "react-markdown";
@@ -10,6 +10,7 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
+import mermaid from "mermaid";
 
 import { Button } from "~/components/ui/button";
 import { rehypeSplitWordsIntoSpans } from "~/core/rehype";
@@ -20,6 +21,69 @@ import Image from "./image";
 import { Tooltip } from "./tooltip";
 import { Link } from "./link";
 import { resolveServiceURL } from "~/core/api";
+
+// Mermaid图表组件
+function MermaidChart({ code }: { code: string }) {
+  const [svg, setSvg] = useState<string>("");
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    // 初始化Mermaid
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose',
+      themeVariables: {
+        primaryColor: '#3b82f6',
+        primaryTextColor: '#1f2937',
+        primaryBorderColor: '#6366f1',
+        lineColor: '#6b7280',
+        secondaryColor: '#f3f4f6',
+        tertiaryColor: '#ffffff'
+      }
+    });
+
+    const renderChart = async () => {
+      try {
+        const chartId = `mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const { svg } = await mermaid.render(chartId, code);
+        setSvg(svg);
+        setError("");
+      } catch (err) {
+        console.error("Mermaid rendering error:", err);
+        setError("图表渲染失败");
+      }
+    };
+
+    if (code.trim()) {
+      renderChart();
+    }
+  }, [code]);
+
+  if (error) {
+    return (
+      <div className="mermaid-error p-4 border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-700 rounded-lg">
+        <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
+        <pre className="text-sm text-gray-600 dark:text-gray-400 mt-2 overflow-x-auto">{code}</pre>
+      </div>
+    );
+  }
+
+  if (!svg) {
+    return (
+      <div className="mermaid-loading p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <p className="text-gray-600 dark:text-gray-400">渲染图表中...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="mermaid-chart flex justify-center my-6 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-x-auto"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
 
 export function Markdown({
   className,
@@ -52,10 +116,26 @@ export function Markdown({
         </span>
       ),
       code: ({ className, children, ...props }) => {
+        const codeContent = String(children);
+        
         // 针对 LaTeX 公式块
         if (className?.includes("language-math")) {
           return <div className="latex-block">{children}</div>;
         }
+        
+        // 处理Mermaid图表
+        if (className?.includes("language-mermaid") || 
+            (codeContent.trim().startsWith('gantt') || 
+             codeContent.trim().startsWith('graph') || 
+             codeContent.trim().startsWith('flowchart') || 
+             codeContent.trim().startsWith('sequenceDiagram') ||
+             codeContent.trim().startsWith('classDiagram') ||
+             codeContent.trim().startsWith('stateDiagram') ||
+             codeContent.trim().startsWith('pie') ||
+             codeContent.trim().startsWith('journey'))) {
+          return <MermaidChart code={codeContent} />;
+        }
+        
         // 普通代码块
         return <code className={cn(className, "code-block")} {...props}>{children}</code>;
       },
@@ -81,7 +161,7 @@ export function Markdown({
     return [rehypeKatex];
   }, [animated]);
   return (
-    <div className={cn(className, "prose dark:prose-invert")} style={style}>
+    <div className={cn(className, "prose dark:prose-invert max-w-none")} style={style}>
       <style>{`
         .latex-block {
           background: #f8f8ff;
@@ -108,6 +188,20 @@ export function Markdown({
           color: #c7254e;
           border-radius: 4px;
           padding: 2px 6px;
+        }
+        .mermaid-chart svg {
+          max-width: 100%;
+          height: auto;
+        }
+        .mermaid-chart .cluster rect {
+          stroke: #6366f1;
+          fill: #f8fafc;
+        }
+        .mermaid-chart .section0, .mermaid-chart .section1, .mermaid-chart .section2 {
+          fill: #3b82f6;
+        }
+        .mermaid-chart .cScale0, .mermaid-chart .cScale1, .mermaid-chart .cScale2 {
+          fill: #60a5fa;
         }
       `}</style>
       <ReactMarkdown
