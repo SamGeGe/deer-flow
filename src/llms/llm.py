@@ -70,6 +70,16 @@ def _create_llm_use_conf(
 
     if llm_type == "reasoning":
         merged_conf["api_base"] = merged_conf.pop("base_url", None)
+    else:
+        # For ChatOpenAI with OpenRouter, map configuration keys to expected parameter names
+        if "api_key" in merged_conf:
+            merged_conf["openai_api_key"] = merged_conf.pop("api_key")
+        if "base_url" in merged_conf:
+            # For OpenRouter, use openai_api_base (preferred) or base_url
+            merged_conf["openai_api_base"] = merged_conf.pop("base_url")
+
+    # Debug: Print the configuration being passed to ChatOpenAI
+    print(f"Creating LLM of type {llm_type} with config: {merged_conf}")
 
     return (
         ChatOpenAI(**merged_conf)
