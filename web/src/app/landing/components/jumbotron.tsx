@@ -41,9 +41,9 @@ export function Jumbotron() {
           遇见 DeerFlow，你的个人深度研究助理。借助搜索引擎、网页爬虫、Python
           和 MCP 服务等强大工具，它能即时提供深刻见解、生成综合报告，甚至制作引人入胜的播客。
         </p>
-        <div className="flex w-full max-w-md gap-6 px-4">
+        <div className="flex w-full justify-center px-4">
           <Button 
-            className="flex w-full text-base md:text-lg md:w-auto md:px-8" 
+            className="flex w-full text-base md:w-auto md:text-lg md:px-8" 
             size="lg" 
             asChild
           >
@@ -56,6 +56,7 @@ export function Jumbotron() {
                   ? "https://github.com/bytedance/deer-flow"
                   : "/chat"
               }
+              className="flex items-center justify-center"
             >
               开始使用 <ChevronRight />
             </Link>
