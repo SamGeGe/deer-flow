@@ -1,13 +1,11 @@
 # DeerFlow 项目移植指南
 
-## 📦 将项目复制到其他电脑
+## 📦 基础移植步骤
 
-### 1. 打包项目
-
-在当前电脑上，打包项目文件：
+### 1. 打包项目文件
 
 ```bash
-# 方法一：使用 tar 打包
+# 使用 tar 打包（推荐）
 tar -czf deer-flow.tar.gz \
   --exclude='.git' \
   --exclude='node_modules' \
@@ -16,214 +14,299 @@ tar -czf deer-flow.tar.gz \
   --exclude='.next' \
   --exclude='outputs' \
   deer-flow/
-
-# 方法二：使用 zip 打包
-zip -r deer-flow.zip deer-flow/ \
-  -x "deer-flow/.git/*" \
-  -x "deer-flow/node_modules/*" \
-  -x "deer-flow/.venv/*" \
-  -x "deer-flow/__pycache__/*" \
-  -x "deer-flow/.next/*" \
-  -x "deer-flow/outputs/*"
 ```
 
-### 2. 传输到新电脑
-
-将打包文件传输到新电脑：
-
-- **网络传输**: scp, rsync, 云存储等
-- **物理媒体**: U盘, 移动硬盘等
-- **代码仓库**: Git clone (如果已推送到仓库)
-
-### 3. 在新电脑上解压
+### 2. 传输到目标机器
 
 ```bash
-# 解压 tar.gz
+# 通过 scp 传输到远程服务器
+scp deer-flow.tar.gz username@server-ip:/path/to/destination/
+
+# 或使用其他方式：rsync, 云存储, U盘等
+```
+
+### 3. 解压并进入目录
+
+```bash
+# 在目标机器上解压
 tar -xzf deer-flow.tar.gz
-
-# 解压 zip
-unzip deer-flow.zip
-
-# 进入项目目录
 cd deer-flow
 ```
 
-### 4. 环境准备
+## 🚀 根据目标平台选择部署方式
 
-#### 4.1 安装系统依赖
+### 🐧 Linux 服务器部署（生产环境）
 
-参考 `QUICK_START.md` 安装必需的工具：
+**适用于：** Ubuntu/Debian/CentOS/RHEL/Rocky/AlmaLinux 等 Linux 服务器
+
+#### 系统要求
+- 内存：建议 4GB+
+- 存储：建议 10GB+ 可用空间
+- 网络：需要访问外网（调用LLM API）
+
+#### 一键部署
+```bash
+# 给脚本添加执行权限
+chmod +x deploy-linux.sh
+
+# 运行一键部署脚本
+./deploy-linux.sh
+```
+
+**这是唯一需要的Linux生产部署脚本**，会自动：
+- 安装 Docker 和 Docker Compose
+- 配置防火墙开放 4051 端口
+- 创建并配置 `.env` 文件
+- 构建并启动所有服务容器
+
+#### 外网访问
+部署完成后可通过以下地址访问：
+- 本地：`http://localhost:4051`
+- 外网：`http://server-ip:4051`
+
+### 💻 macOS 本地部署
+
+**适用于：** macOS 开发机器或本地使用
+
+#### 系统要求
+- macOS 10.15+
+- 需要安装 Docker Desktop for Mac
+
+#### 一键部署
+```bash
+# 给脚本添加执行权限
+chmod +x deploy-universal.sh
+
+# 运行通用部署脚本
+./deploy-universal.sh
+```
+
+脚本会自动：
+- 检查 Docker Desktop 是否运行
+- 创建并配置 `.env` 文件
+- 构建并启动所有服务容器
+
+#### 访问地址
+- 本地：`http://localhost:4051`
+- 网络：`http://你的Mac的IP:4051`
+
+### 🪟 Windows 本地部署
+
+**适用于：** Windows 开发机器或本地使用
+
+#### 系统要求
+- Windows 10/11
+- 需要安装 Docker Desktop for Windows
+- 需要 Git Bash 或 WSL2
+
+#### 部署方式
+
+**方式一：使用 Git Bash**
+```bash
+# 在 Git Bash 中运行
+chmod +x deploy-universal.sh
+./deploy-universal.sh
+```
+
+**方式二：使用 WSL2**
+```bash
+# 在 WSL2 中运行
+chmod +x deploy-universal.sh
+./deploy-universal.sh
+```
+
+#### 访问地址
+- 本地：`http://localhost:4051`
+- 网络：`http://你的Windows的IP:4051`
+
+## 🖥️ 开发环境部署（所有平台）
+
+### 开发模式特点
+- 支持热重载
+- 前后端分离运行
+- 便于调试开发
+
+### 环境要求
 - Python 3.12+
 - uv 0.7+
 - Node.js 18+
 - pnpm 8+
 
-#### 4.2 运行环境检查
+### 快速启动
 
 ```bash
-# 给脚本添加执行权限
-chmod +x check-deployment.sh
-chmod +x bootstrap.sh
-chmod +x set-tavily-key.sh
-
-# 运行环境检查
-./check-deployment.sh
-```
-
-### 5. 安装依赖
-
-#### 5.1 Python 依赖
-
-```bash
-# 安装 Python 依赖
-uv sync --locked
-```
-
-#### 5.2 前端依赖
-
-```bash
-# 安装前端依赖
-cd web
-pnpm install
-cd ..
-```
-
-### 6. 配置环境
-
-#### 6.1 创建环境配置
-
-```bash
-# 复制环境配置模板
-cp env.example .env
-```
-
-#### 6.2 配置 API 密钥
-
-```bash
-# 设置 Tavily API 密钥 (可选但推荐)
-./set-tavily-key.sh your_tavily_api_key
-
-# 或者手动编辑 .env 文件
-nano .env  # 或使用其他编辑器
-```
-
-### 7. 启动服务
-
-#### 7.1 开发模式
-
-```bash
-# 启动开发模式
-./bootstrap.sh --dev
-
-# 访问地址
-# 前端: http://localhost:9000
-# 后端: http://localhost:9001
-```
-
-#### 7.2 Docker 模式
-
-```bash
-# 启动 Docker 服务
-docker-compose up -d
-
-# 访问地址
-# 前端: http://localhost:4051
-# 后端: http://localhost:8000
-```
-
-### 8. 验证功能
-
-1. 访问前端页面
-2. 尝试发起一个研究任务
-3. 检查搜索和 LLM 调用是否正常
-
-### 9. 故障排除
-
-#### 9.1 依赖问题
-
-```bash
-# 重新安装 Python 依赖
-rm -rf .venv
-uv sync --locked
-
-# 重新安装前端依赖
-cd web
-rm -rf node_modules
-pnpm install
-cd ..
-```
-
-#### 9.2 端口冲突
-
-检查并修改配置中的端口：
-- 开发模式：修改 `bootstrap.sh` 中的端口
-- Docker 模式：修改 `docker-compose.yml` 中的端口映射
-
-#### 9.3 权限问题
-
-```bash
-# 确保脚本有执行权限
-chmod +x *.sh
-```
-
-### 10. 配置持久化
-
-#### 10.1 保存自定义配置
-
-如果你修改了配置，记得备份：
-- `.env` - 环境变量配置
-- `conf.yaml` - 模型配置
-- `docker-compose.yml` - Docker 配置 (如果有修改)
-
-#### 10.2 版本控制
-
-建议将项目纳入版本控制：
-
-```bash
-# 初始化 Git 仓库
-git init
-git add .
-git commit -m "Initial commit"
-
-# 添加远程仓库 (可选)
-git remote add origin your-repo-url
-git push -u origin main
-```
-
-### 11. 自动化脚本
-
-创建一键部署脚本 `deploy.sh`：
-
-```bash
-#!/bin/bash
-echo "🚀 DeerFlow 一键部署"
-
-# 检查环境
+# 1. 环境检查
 ./check-deployment.sh
 
-# 安装依赖
-echo "安装 Python 依赖..."
+# 2. 安装依赖
 uv sync --locked
-
-echo "安装前端依赖..."
 cd web && pnpm install && cd ..
 
-# 配置环境
-if [ ! -f .env ]; then
-    cp env.example .env
-    echo "已创建 .env 文件，请配置 API 密钥"
-fi
+# 3. 配置环境
+cp env.example .env
+# 编辑 .env 配置 API 密钥
 
-echo "✅ 部署完成！"
-echo "运行 './bootstrap.sh --dev' 启动开发模式"
-echo "或运行 'docker-compose up -d' 启动 Docker 模式"
+# 4. 启动开发模式
+./bootstrap.sh --dev
+# 访问: http://localhost:9000
 ```
 
-### 12. 注意事项
+## ⚙️ 必需配置文件
 
-- **不要复制** `.git`, `node_modules`, `.venv` 等目录
-- **确保** API 密钥在新环境中重新配置
-- **检查** 防火墙设置，确保端口可访问
-- **验证** 网络连接，确保可以访问外部 API
+### 1. conf.yaml - LLM模型配置
+```yaml
+BASIC_MODEL:
+  model: "qwen/qwen3-235b-a22b"
+  api_key: "your-openrouter-api-key"
+  base_url: "https://openrouter.ai/api/v1"
+```
 
-这样就能确保项目在任何新电脑上都能正常运行！ 
+### 2. .env - 环境变量配置
+```bash
+SEARCH_API=tavily
+TAVILY_API_KEY=your-tavily-key
+NEXT_PUBLIC_API_URL=/api  # 生产环境使用相对路径
+```
+
+**注意**: 
+- `.env` 文件由部署脚本自动创建
+- `conf.yaml` 需要手动配置
+- Linux部署：`deploy-linux.sh` 自动创建 `.env`
+- Windows/Mac部署：`deploy-universal.sh` 自动创建 `.env`
+
+## 🔧 故障排除
+
+### 通用问题
+
+#### 1. API 认证失败
+```bash
+# 检查配置文件
+cat conf.yaml
+# 确保 OpenRouter API key 有效
+
+# 测试 API 连接
+curl -X POST "https://openrouter.ai/api/v1/chat/completions" \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "qwen/qwen3-235b-a22b", "messages": [{"role": "user", "content": "test"}]}'
+```
+
+#### 2. 端口被占用
+```bash
+# 查看端口占用
+# Linux/Mac/WSL
+sudo lsof -i :4051
+
+# Windows
+netstat -ano | findstr :4051
+
+# 修改端口（编辑 docker-compose.yml）
+ports:
+  - "4052:80"  # 改为其他端口
+```
+
+#### 3. 容器启动失败
+```bash
+# 查看详细错误日志
+docker compose logs backend
+docker compose logs frontend
+docker compose logs nginx
+
+# 重新构建容器
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+```
+
+### 平台特定问题
+
+#### Linux 服务器
+```bash
+# 检查防火墙状态
+sudo ufw status
+sudo firewall-cmd --list-ports
+
+# 检查 nginx 配置
+docker exec deer-flow-nginx nginx -t
+```
+
+#### macOS
+```bash
+# 检查 Docker Desktop 状态
+docker info
+
+# 检查本地防火墙
+sudo pfctl -s all
+```
+
+#### Windows
+```bash
+# 检查 Docker Desktop 状态
+docker info
+
+# 检查防火墙
+netsh advfirewall firewall show rule name="Docker Desktop"
+```
+
+## 📋 部署检查清单
+
+### 部署前准备
+- [ ] 确保有有效的 OpenRouter API key
+- [ ] 检查系统要求（内存、存储、网络）
+- [ ] 准备好 Tavily API key（搜索功能，可选）
+- [ ] 确认端口 4051 可用且未被占用
+
+### 平台特定准备
+- [ ] **Linux**: 确保有 sudo 权限
+- [ ] **macOS**: 安装并启动 Docker Desktop
+- [ ] **Windows**: 安装 Docker Desktop + Git Bash 或 WSL2
+
+### 部署执行
+- [ ] **Linux**: 运行 `./deploy-linux.sh`
+- [ ] **macOS/Windows**: 运行 `./deploy-universal.sh`
+- [ ] 脚本执行完成无错误提示
+- [ ] 所有Docker容器状态为 "Up"
+
+### 部署验证
+- [ ] 访问 `http://localhost:4051` 能正常打开界面
+- [ ] 尝试发送测试消息，验证 LLM 响应正常
+- [ ] 检查搜索功能是否正常工作
+- [ ] 验证日志中无错误信息：`docker compose logs -f`
+
+## 🚀 部署脚本对比
+
+| 脚本 | 适用平台 | 功能 | 使用场景 |
+|------|----------|------|----------|
+| **`deploy-linux.sh`** | Linux 服务器 | 自动安装Docker、配置防火墙、生产部署 | 🎯 Linux 生产服务器 |
+| **`deploy-universal.sh`** | macOS、Windows | 检查Docker Desktop、本地部署 | 💻 本地开发和测试 |
+| **`bootstrap.sh`** | 所有平台 | 开发模式启动 | 🔧 开发调试 |
+
+### 选择指南
+- **Linux 服务器生产部署** → 使用 `deploy-linux.sh`
+- **macOS 本地使用** → 使用 `deploy-universal.sh`
+- **Windows 本地使用** → 使用 `deploy-universal.sh`
+- **开发调试** → 使用 `bootstrap.sh --dev`
+
+## 📱 访问地址总结
+
+| 部署方式 | 本地访问 | 外网访问 | 说明 |
+|----------|----------|----------|------|
+| Linux 生产 | http://localhost:4051 | http://server-ip:4051 | 需要防火墙开放端口 |
+| macOS 本地 | http://localhost:4051 | http://mac-ip:4051 | 需要防火墙允许 |
+| Windows 本地 | http://localhost:4051 | http://windows-ip:4051 | 需要防火墙允许 |
+| 开发模式 | http://localhost:9000 | - | 仅本地开发 |
+
+---
+
+**📞 获取帮助**
+
+如果遇到问题：
+1. 查看 `docker compose logs -f` 获取详细错误信息
+2. 检查 `docs/FAQ.md` 常见问题解答
+3. 运行 `./check-deployment.sh` 进行环境检查
+4. 在 GitHub Issues 中寻找解决方案
+
+**💡 关键提示**:
+- **Linux 服务器**: 使用 `./deploy-linux.sh` 一键部署
+- **macOS/Windows**: 使用 `./deploy-universal.sh` 一键部署
+- **开发调试**: 使用 `./bootstrap.sh --dev` 开发模式 

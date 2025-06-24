@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # DeerFlow 通用部署脚本
-# 支持 macOS 和 Linux 系统
+# 支持 macOS 和 Windows (Git Bash/WSL)
+# 适用于本地开发和小规模部署
 
 set -e  # 遇到错误立即退出
 
@@ -40,17 +41,19 @@ detect_os() {
             VER=$(sw_vers -productVersion)
             ;;
         Linux)
-            if [ -f /etc/os-release ]; then
-                . /etc/os-release
-                OS=$NAME
-                VER=$VERSION_ID
-            elif type lsb_release >/dev/null 2>&1; then
-                OS=$(lsb_release -si)
-                VER=$(lsb_release -sr)
+            # 检查是否为WSL
+            if grep -qi "microsoft\|wsl" /proc/version 2>/dev/null; then
+                OS="WSL"
+                VER="Windows Subsystem for Linux"
             else
                 OS="Linux"
                 VER="Unknown"
+                log_warning "检测到Linux系统，建议使用 deploy-linux.sh"
             fi
+            ;;
+        MINGW*|MSYS*|CYGWIN*)
+            OS="Windows"
+            VER="Git Bash/MSYS"
             ;;
         *)
             log_error "不支持的系统类型: $(uname -s)"
@@ -60,16 +63,18 @@ detect_os() {
     log_info "检测到系统: $OS $VER"
 }
 
-# 检查Docker是否安装
-check_docker() {
+# 检查Docker Desktop是否安装和运行
+check_docker_desktop() {
     if ! command -v docker &> /dev/null; then
         log_error "Docker 未安装"
         case "$OS" in
             "macOS")
-                log_info "请安装 Docker Desktop for Mac: https://docs.docker.com/desktop/mac/"
+                log_info "请安装 Docker Desktop for Mac:"
+                log_info "https://docs.docker.com/desktop/mac/"
                 ;;
-            *)
-                log_info "请安装 Docker: https://docs.docker.com/engine/install/"
+            "Windows"|"WSL")
+                log_info "请安装 Docker Desktop for Windows:"
+                log_info "https://docs.docker.com/desktop/windows/"
                 ;;
         esac
         exit 1
@@ -79,16 +84,16 @@ check_docker() {
         log_error "Docker 服务未运行"
         case "$OS" in
             "macOS")
-                log_info "请启动 Docker Desktop"
+                log_info "请启动 Docker Desktop 应用程序"
                 ;;
-            *)
-                log_info "请启动 Docker 服务: sudo systemctl start docker"
+            "Windows"|"WSL")
+                log_info "请启动 Docker Desktop 应用程序"
                 ;;
         esac
         exit 1
     fi
     
-    log_success "Docker 已安装并运行"
+    log_success "Docker Desktop 已安装并运行"
 }
 
 # 检查Docker Compose
@@ -96,12 +101,9 @@ check_docker_compose() {
     if ! (command -v docker-compose &> /dev/null || docker compose version &> /dev/null 2>&1); then
         log_error "Docker Compose 未安装"
         case "$OS" in
-            "macOS")
+            "macOS"|"Windows"|"WSL")
                 log_info "Docker Compose 应该随 Docker Desktop 一起安装"
                 log_info "请检查 Docker Desktop 是否正确安装"
-                ;;
-            *)
-                log_info "请安装 Docker Compose: https://docs.docker.com/compose/install/"
                 ;;
         esac
         exit 1
@@ -134,11 +136,15 @@ setup_environment() {
         cp env.example .env
         
         # 更新API URL为相对路径（适配nginx反向代理）
-        if [[ "$OS" == "macOS" ]]; then
-            sed -i '' 's|NEXT_PUBLIC_API_URL="http://localhost:8000/api"|NEXT_PUBLIC_API_URL="/api"|g' .env
-        else
-            sed -i 's|NEXT_PUBLIC_API_URL="http://localhost:8000/api"|NEXT_PUBLIC_API_URL="/api"|g' .env
-        fi
+        case "$OS" in
+            "macOS"|"Linux"|"WSL")
+                sed -i.bak 's|NEXT_PUBLIC_API_URL="http://localhost:8000/api"|NEXT_PUBLIC_API_URL="/api"|g' .env
+                rm -f .env.bak
+                ;;
+            "Windows")
+                sed -i 's|NEXT_PUBLIC_API_URL="http://localhost:8000/api"|NEXT_PUBLIC_API_URL="/api"|g' .env
+                ;;
+        esac
         
         log_success ".env 文件创建完成"
     else
@@ -164,7 +170,7 @@ deploy_application() {
     log_info "开始部署应用..."
     
     # 停止可能存在的旧容器
-    if docker compose ps -q &> /dev/null; then
+    if docker compose ps -q &> /dev/null 2>&1; then
         log_info "停止现有容器..."
         docker compose down
     fi
@@ -196,8 +202,19 @@ get_local_ip() {
         "macOS")
             LOCAL_IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -1)
             ;;
+        "WSL")
+            # WSL需要获取Windows主机IP
+            LOCAL_IP=$(ip route show | grep -i default | awk '{ print $3}')
+            ;;
+        "Windows")
+            # Git Bash中获取IP
+            LOCAL_IP=$(ipconfig | grep -A 1 "Wireless LAN adapter Wi-Fi" | grep "IPv4" | awk '{print $NF}' | tr -d '\r')
+            if [ -z "$LOCAL_IP" ]; then
+                LOCAL_IP=$(ipconfig | grep -A 1 "Ethernet adapter" | grep "IPv4" | awk '{print $NF}' | tr -d '\r')
+            fi
+            ;;
         *)
-            LOCAL_IP=$(hostname -I | awk '{print $1}')
+            LOCAL_IP="localhost"
             ;;
     esac
     
@@ -231,24 +248,31 @@ show_deployment_info() {
     echo "   - 编辑 conf.yaml 文件配置模型"
     echo "   - 查看 docs/configuration_guide.md 获取详细配置指南"
     echo ""
-    echo "🔍 搜索引擎："
-    echo "   - 当前使用: DuckDuckGo (无需API密钥)"
-    echo "   - 如需使用Tavily: ./set-tavily-key.sh your_api_key"
-    echo ""
     case "$OS" in
         "macOS")
-            echo "💻 macOS 特别说明："
+            echo "💻 macOS 使用说明："
             echo "   - 服务运行在 Docker Desktop 中"
             echo "   - 可通过 Docker Desktop 界面管理容器"
+            echo "   - 如需外网访问，请检查防火墙设置"
             ;;
-        *)
-            echo "🐧 Linux 特别说明："
-            echo "   - 如使用防火墙，请开放4051端口"
-            echo "   - 如使用云服务器，请在安全组中开放端口"
+        "Windows")
+            echo "🪟 Windows 使用说明："
+            echo "   - 服务运行在 Docker Desktop 中"
+            echo "   - 可通过 Docker Desktop 界面管理容器"
+            echo "   - 如需外网访问，请检查防火墙设置"
+            ;;
+        "WSL")
+            echo "🐧 WSL 使用说明："
+            echo "   - 服务运行在 WSL2 + Docker Desktop 中"
+            echo "   - 可从 Windows 和 WSL 访问"
+            echo "   - Windows 访问: http://localhost:4051"
             ;;
     esac
     echo ""
-    echo "⚠️  首次访问可能需要等待几分钟"
+    echo "⚠️  注意事项："
+    echo "   - 首次启动可能需要等待几分钟"
+    echo "   - 确保 Docker Desktop 保持运行状态"
+    echo "   - 如需使用搜索功能，请配置 Tavily API 密钥"
 }
 
 # 主函数
@@ -261,7 +285,7 @@ main() {
     detect_os
     
     # 检查依赖
-    check_docker
+    check_docker_desktop
     check_docker_compose
     
     # 检查项目
