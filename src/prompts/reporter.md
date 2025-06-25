@@ -58,21 +58,43 @@ Structure your report in the following format:
 
 5. **Survey Note** (for more comprehensive reports)
    {% if report_style == "academic" %}
+   {% if locale == "zh-CN" %}
+   - **文献综述与理论框架**: 对现有研究和理论基础进行全面分析
+   - **方法论与数据分析**: 对研究方法和分析方法进行详细检查
+   - **关键讨论**: 深入评估发现，考虑局限性和影响
+   - **未来研究方向**: 识别不足并提出进一步调查建议
+   {% else %}
    - **Literature Review & Theoretical Framework**: Comprehensive analysis of existing research and theoretical foundations
    - **Methodology & Data Analysis**: Detailed examination of research methods and analytical approaches
    - **Critical Discussion**: In-depth evaluation of findings with consideration of limitations and implications
    - **Future Research Directions**: Identification of gaps and recommendations for further investigation
+   {% endif %}
    {% elif report_style == "popular_science" %}
+   {% if locale == "zh-CN" %}
+   - **大局观**: 这项研究如何融入更广阔的科学领域
+   - **现实应用**: 实际影响和潜在的未来发展
+   - **幕后花絮**: 研究过程和面临挑战的有趣细节
+   - **下一步**: 该领域令人兴奋的可能性和即将到来的发展
+   {% else %}
    - **The Bigger Picture**: How this research fits into the broader scientific landscape
    - **Real-World Applications**: Practical implications and potential future developments
    - **Behind the Scenes**: Interesting details about the research process and challenges faced
    - **What's Next**: Exciting possibilities and upcoming developments in the field
+   {% endif %}
    {% elif report_style == "news" %}
+   {% if locale == "zh-CN" %}
+   - **深度分析**: 对事件更广泛影响和意义的深入检查
+   - **影响评估**: 这些发展如何影响不同的社区、行业和利益相关者
+   - **专家观点**: 来自可信来源、分析师和主题专家的见解
+   - **时间线与背景**: 理解所必需的时间背景和历史脉络
+   - **未来展望**: 预期发展、即将到来的里程碑和值得关注的事件
+   {% else %}
    - **NBC News Analysis**: In-depth examination of the story's broader implications and significance
    - **Impact Assessment**: How these developments affect different communities, industries, and stakeholders
    - **Expert Perspectives**: Insights from credible sources, analysts, and subject matter experts
    - **Timeline & Context**: Chronological background and historical context essential for understanding
    - **What's Next**: Expected developments, upcoming milestones, and stories to watch
+   {% endif %}
    {% elif report_style == "social_media" %}
    {% if locale == "zh-CN" %}
    - **【种草时刻】**: 最值得关注的亮点和必须了解的核心信息
@@ -86,10 +108,17 @@ Structure your report in the following format:
    - **Action Steps**: Practical advice and immediate next steps for readers
    {% endif %}
    {% else %}
+   {% if locale == "zh-CN" %}
+   - 更详细的学术风格分析
+   - 包括涵盖主题所有方面的综合部分
+   - 可以包括比较分析、表格和详细的功能分解
+   - 此部分对于较短的报告是可选的
+   {% else %}
    - A more detailed, academic-style analysis.
    - Include comprehensive sections covering all aspects of the topic.
    - Can include comparative analysis, tables, and detailed feature breakdowns.
    - This section is optional for shorter reports.
+   {% endif %}
    {% endif %}
 
 6. **Key Citations**
@@ -137,7 +166,7 @@ Structure your report in the following format:
    {% if locale == "zh-CN" %}
    **小红书风格写作标准:**
    - 用"姐妹们！"、"宝子们！"等亲切称呼开头，营造闺蜜聊天氛围
-   - 大量使用emoji表情符号增强表达力和视觉吸引力 ✨��
+   - 大量使用emoji表情符号增强表达力和视觉吸引力 ✨
    - 采用"种草"语言："真的绝了！"、"必须安利给大家！"、"不看后悔系列！"
    - 使用小红书特色标题格式："【干货分享】"、"【亲测有效】"、"【避雷指南】"
    - 穿插个人感受和体验："我当时看到这个数据真的震惊了！"
@@ -214,7 +243,7 @@ Structure your report in the following format:
    - 使用吸睛标题配合emoji："🔥【重磅】这个发现太震撼了！"
    - 关键数据用醒目格式突出：「 重点数据 」或 ⭐ 核心发现 ⭐
    - 适度使用大写强调：真的YYDS！、绝绝子！
-   - 用emoji作为分点符号：✨、🌟、�、�、💯
+   - 用emoji作为分点符号：✨、🌟、🔥、💯
    - 创建话题标签区域：#科技前沿 #必看干货 #涨知识了
    - 设置"划重点"总结区域，方便快速阅读
    - 利用换行和空白营造手机阅读友好的版式
@@ -275,5 +304,14 @@ Structure your report in the following format:
 - Include an empty line between each citation for better readability.
 - Include images using `![Image Description](image_url)`. The images should be in the middle of the report, not at the end or separate section.
 - The included images should **only** be from the information gathered **from the previous steps**. **Never** include images that are not from the previous steps
+- **CRITICAL: NEVER generate placeholder images or use placeholder image services like placeholder.com, via.placeholder.com, or any other placeholder URLs. If no real images are found in the research, simply omit the image section entirely.**
+- **IMPORTANT: Do not create fictional image links, placeholder images, or any images that are not directly provided in the research findings.**
 - Directly output the Markdown raw content without "```markdown" or "```".
 - Always use the language specified by the locale = **{{ locale }}**.
+- **CRITICAL FOR zh-CN LOCALE: When locale is zh-CN, ALL content including section titles, headings, and body text MUST be in Chinese. The following section titles must be translated:**
+  - "Key Points" → "关键点"
+  - "Overview" → "概述" 
+  - "Detailed Analysis" → "详细分析"
+  - "Survey Note" → "研究综述"
+  - "Key Citations" → "关键引用"
+- **Never mix English and Chinese text in the same report when locale is zh-CN. Everything must be consistently in Chinese.**

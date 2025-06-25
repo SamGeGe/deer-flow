@@ -23,7 +23,8 @@ from src.tools import (
 
 from src.config.agents import AGENT_LLM_MAP
 from src.config.configuration import Configuration
-from src.llms.llm import get_llm_by_type
+from src.config import load_yaml_config
+from src.llms.llm import get_llm_by_type, _get_config_file_path
 from src.prompts.planner_model import Plan
 from src.prompts.template import apply_prompt_template
 from src.utils.json_utils import repair_json_output
@@ -130,14 +131,24 @@ def planner_node(
             }
         ]
 
+    # Check if we're using a local model (heuristic: if base_url contains localhost or local IP)
+    llm_config = load_yaml_config(_get_config_file_path()).get("BASIC_MODEL", {})
+    base_url = llm_config.get("base_url", "")
+    is_local_model = ("localhost" in base_url or 
+                     "127.0.0.1" in base_url or 
+                     "192.168." in base_url or 
+                     "10." in base_url)
+
     if configurable.enable_deep_thinking:
         llm = get_llm_by_type("reasoning")
-    elif AGENT_LLM_MAP["planner"] == "basic":
+    elif AGENT_LLM_MAP["planner"] == "basic" and not is_local_model:
+        # Only use structured output for remote models that support it well
         llm = get_llm_by_type("basic").with_structured_output(
             Plan,
             method="json_mode",
         )
     else:
+        # For local models, use basic LLM without structured output constraints
         llm = get_llm_by_type(AGENT_LLM_MAP["planner"])
 
     # if the plan iterations is greater than the max plan iterations, return the reporter node
@@ -145,20 +156,24 @@ def planner_node(
         return Command(goto="reporter")
 
     full_response = ""
-    if AGENT_LLM_MAP["planner"] == "basic" and not configurable.enable_deep_thinking:
+    # Use structured output only for remote models
+    if AGENT_LLM_MAP["planner"] == "basic" and not configurable.enable_deep_thinking and not is_local_model:
         response = llm.invoke(messages)
         full_response = response.model_dump_json(indent=4, exclude_none=True)
     else:
+        # For local models or reasoning models, use streaming
         response = llm.stream(messages)
         for chunk in response:
             full_response += chunk.content
+    
     logger.debug(f"Current state messages: {state['messages']}")
     logger.info(f"Planner response: {full_response}")
 
     try:
         curr_plan = json.loads(repair_json_output(full_response))
-    except json.JSONDecodeError:
-        logger.warning("Planner response is not a valid JSON")
+    except json.JSONDecodeError as e:
+        logger.warning(f"Planner response is not a valid JSON: {e}")
+        logger.warning(f"Raw response: {full_response[:500]}...")  # Log first 500 chars for debugging
         if plan_iterations > 0:
             return Command(goto="reporter")
         else:
