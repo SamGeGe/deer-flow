@@ -54,10 +54,17 @@ export async function* chatStream(
     });
     
     for await (const event of stream) {
-      yield {
-        type: event.event,
-        data: JSON.parse(event.data),
-      } as ChatEvent;
+      try {
+        yield {
+          type: event.event,
+          data: JSON.parse(event.data),
+        } as ChatEvent;
+      } catch (parseError) {
+        console.error('JSON parse error for event:', event.event, parseError);
+        console.error('Raw data:', event.data);
+        // 跳过这个损坏的事件，继续处理下一个
+        continue;
+      }
     }
   }catch(e){
     console.error(e);

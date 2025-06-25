@@ -1,17 +1,19 @@
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
-import { Check, Copy, Headphones, Pencil, Undo2, X, Download } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Check, Copy, Headphones, Pencil, Undo2, X, Download, ChevronDown } from "lucide-react";
+import { useCallback, useEffect, useState, useRef } from "react";
 
 import { ScrollContainer } from "~/components/deer-flow/scroll-container";
 import { Tooltip } from "~/components/deer-flow/tooltip";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 import { useReplay } from "~/core/replay";
 import { closeResearch, listenToPodcast, useStore } from "~/core/store";
 import { cn } from "~/lib/utils";
+import { exportReport, type ExportFormat } from "~/utils/export";
 
 import { ResearchActivitiesBlock } from "./research-activities-block";
 import { ResearchReportBlock } from "./research-report-block";
@@ -34,6 +36,8 @@ export function ResearchBlock({
     reportId ? (state.messages.get(reportId)?.isStreaming ?? false) : false,
   );
   const { isReplay } = useReplay();
+  const reportElementRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     if (hasReport) {
       setActiveTab("report");
@@ -49,6 +53,8 @@ export function ResearchBlock({
 
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  
   const handleCopy = useCallback(() => {
     if (!reportId) {
       return;
@@ -64,33 +70,47 @@ export function ResearchBlock({
     }, 1000);
   }, [reportId]);
 
-  // Download report as markdown
-  const handleDownload = useCallback(() => {
+  // 导出报告
+  const handleExport = useCallback(async (format: ExportFormat) => {
     if (!reportId) {
       return;
     }
+    
     const report = useStore.getState().messages.get(reportId);
     if (!report) {
       return;
     }
-    const now = new Date();
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-    const filename = `research-report-${timestamp}.md`;
-    const blob = new Blob([report.content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 0);
+
+    setIsExporting(true);
+    
+    try {
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+      
+      const extensionMap = {
+        markdown: 'md',
+        pdf: 'pdf',
+        word: 'docx'
+      };
+      
+      const filename = `research-report-${timestamp}.${extensionMap[format]}`;
+      
+      await exportReport({
+        format,
+        content: report.content,
+        filename,
+        element: format === 'pdf' ? reportElementRef.current || undefined : undefined
+      });
+      
+    } catch (error) {
+      console.error('导出失败:', error);
+      // 这里可以添加错误提示
+    } finally {
+      setIsExporting(false);
+    }
   }, [reportId]);
 
-    
   const handleEdit = useCallback(() => {
     setEditing((editing) => !editing);
   }, []);
@@ -140,16 +160,29 @@ export function ResearchBlock({
                   {copied ? <Check /> : <Copy />}
                 </Button>
               </Tooltip>
-              <Tooltip title="Download report as markdown">
-                <Button
-                  className="text-gray-400"
-                  size="icon"
-                  variant="ghost"
-                  onClick={handleDownload}
-                >
-                  <Download />
-                </Button>
-              </Tooltip>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    className="text-gray-400"
+                    size="icon"
+                    variant="ghost"
+                    disabled={isExporting}
+                  >
+                    <Download />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExport('markdown')}>
+                    下载为 Markdown
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                    下载为 PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('word')}>
+                    下载为 Word
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
           <Tooltip title="Close">
@@ -196,12 +229,14 @@ export function ResearchBlock({
               autoScrollToBottom={!hasReport || reportStreaming}
             >
               {reportId && researchId && (
-                <ResearchReportBlock
-                  className="mt-4"
-                  researchId={researchId}
-                  messageId={reportId}
-                  editing={editing}
-                />
+                <div ref={reportElementRef}>
+                  <ResearchReportBlock
+                    className="mt-4"
+                    researchId={researchId}
+                    messageId={reportId}
+                    editing={editing}
+                  />
+                </div>
               )}
             </ScrollContainer>
           </TabsContent>
