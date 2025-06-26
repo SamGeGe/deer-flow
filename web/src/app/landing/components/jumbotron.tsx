@@ -25,12 +25,11 @@ export function Jumbotron() {
         flickerChance={0.1}
       />
       <div className="relative z-10 flex flex-col items-center justify-center gap-8 md:gap-12">
-        <ShineBorder
+        <div
           className="relative flex h-20 w-20 items-center justify-center rounded-full border-2 bg-white/5 md:h-32 md:w-32"
-          color="#60A5FA"
         >
           <LogoIcon className="h-16 w-16 md:h-28 md:w-28" />
-        </ShineBorder>
+        </div>
         <h1 className="text-center text-3xl font-bold md:text-6xl">
           <span className="bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
             深度研究{" "}

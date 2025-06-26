@@ -3,6 +3,7 @@
 
 import { motion } from "framer-motion";
 
+import { LogoIcon } from "~/components/deer-flow/logo";
 import { cn } from "~/lib/utils";
 
 export function Welcome({ className }: { className?: string }) {
@@ -22,9 +23,9 @@ export function Welcome({ className }: { className?: string }) {
           href="https://github.com/bytedance/deer-flow"
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:underline"
+          className="hover:underline inline-flex items-center gap-1"
         >
-          🦌 DeerFlow
+          <LogoIcon className="w-5 h-5" /> DeerFlow
         </a>
         ，一个基于前沿语言模型的深度研究助理，帮助您进行网络搜索、信息浏览和处理复杂任务。
       </div>
