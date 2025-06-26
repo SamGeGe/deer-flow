@@ -23,8 +23,11 @@ services:
     environment:
       - SEARCH_API=${SEARCH_API:-tavily}
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      - TZ=Asia/Shanghai
     volumes:
       - ./conf.yaml:/app/conf.yaml
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     restart: unless-stopped
     networks:
       - deer-flow-network

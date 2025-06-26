@@ -97,7 +97,7 @@ class EnhancedTavilySearchAPIWrapper(OriginalTavilySearchAPIWrapper):
             return []
             
         clean_results = []
-        max_content_length = 2000  # 限制每个结果的内容长度
+        max_content_length = 5000  # 限制每个结果的内容长度
         
         for result in results:
             if not result:

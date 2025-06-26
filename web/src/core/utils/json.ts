@@ -14,8 +14,9 @@ export function parseJSON<T>(json: string | null | undefined, fallback: T) {
       .replace(/^```\s*/, "")
       .replace(/\s*```$/, "")
       .replace(/\(\)$/, "");
+    
     return parse(raw) as T;
-  } catch {
+  } catch (error) {
     return fallback;
   }
 }

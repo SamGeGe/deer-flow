@@ -103,6 +103,47 @@ def get_llm_by_type(
     return llm
 
 
+def get_llm_with_reasoning_effort(
+    llm_type: LLMType = "basic", 
+    reasoning_effort: str = None
+) -> ChatOpenAI | ChatDeepSeek:
+    """
+    Get LLM instance with specific reasoning effort configuration.
+    
+    Args:
+        llm_type: Type of LLM to use
+        reasoning_effort: Control reasoning effort - "low", "medium", "high", or None
+                         - None/low: Fast mode (no deep thinking)
+                         - high: Deep thinking mode
+    
+    Returns:
+        LLM instance configured with appropriate reasoning effort
+    """
+    base_llm = get_llm_by_type(llm_type)
+    
+    # If it's a ChatDeepSeek instance and we want to control reasoning
+    if isinstance(base_llm, ChatDeepSeek) and reasoning_effort:
+        # Create a new instance with reasoning_effort parameter
+        conf = load_yaml_config(_get_config_file_path())
+        llm_type_config_keys = _get_llm_type_config_keys()
+        config_key = llm_type_config_keys.get(llm_type)
+        
+        if config_key:
+            llm_conf = conf.get(config_key, {})
+            env_conf = _get_env_llm_conf(llm_type)
+            merged_conf = {**llm_conf, **env_conf}
+            
+            # Add reasoning_effort parameter
+            merged_conf["reasoning_effort"] = reasoning_effort
+            
+            if llm_type == "reasoning":
+                merged_conf["api_base"] = merged_conf.pop("base_url", None)
+            
+            return ChatDeepSeek(**merged_conf)
+    
+    return base_llm
+
+
 def get_configured_llm_models() -> dict[str, list[str]]:
     """
     Get all configured LLM models grouped by type.

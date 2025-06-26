@@ -24,7 +24,7 @@ from src.tools import (
 from src.config.agents import AGENT_LLM_MAP
 from src.config.configuration import Configuration
 from src.config import load_yaml_config
-from src.llms.llm import get_llm_by_type, _get_config_file_path
+from src.llms.llm import get_llm_by_type, _get_config_file_path, get_llm_with_reasoning_effort
 from src.prompts.planner_model import Plan
 from src.prompts.template import apply_prompt_template
 from src.utils.json_utils import repair_json_output
@@ -114,32 +114,52 @@ def planner_node(
                      "192.168." in base_url or 
                      "10." in base_url)
 
-    if configurable.enable_deep_thinking:
-        llm = get_llm_by_type("reasoning")
-    elif AGENT_LLM_MAP["planner"] == "basic" and not is_local_model:
-        # Only use structured output for remote models that support it well
-        llm = get_llm_by_type("basic").with_structured_output(
-            Plan,
-            method="json_mode",
-        )
+    # PLANNER STAGE: Use reasoning effort based on iteration count and deep thinking setting
+    # First iteration: fast mode, refinement iterations: high reasoning if enabled
+    if configurable.enable_deep_thinking and plan_iterations >= 1:
+        reasoning_effort = "high"  # Deep thinking for plan refinement
     else:
-        # For local models, use basic LLM without structured output constraints
-        llm = get_llm_by_type(AGENT_LLM_MAP["planner"])
+        reasoning_effort = "low"   # Fast mode for initial planning
+    
+    logger.info(f"Planner using reasoning effort: {reasoning_effort} (iterations: {plan_iterations})")
+    
+    # Get LLM with appropriate reasoning effort
+    llm = get_llm_with_reasoning_effort(
+        llm_type=AGENT_LLM_MAP["planner"], 
+        reasoning_effort=reasoning_effort
+    )
+    
+    # For structured output, bind it if we're using remote models and not using high reasoning
+    if AGENT_LLM_MAP["planner"] == "basic" and reasoning_effort == "low" and not is_local_model:
+        try:
+            llm = llm.with_structured_output(Plan, method="json_mode")
+        except Exception:
+            # If structured output fails, continue with regular LLM
+            pass
 
     # if the plan iterations is greater than the max plan iterations, return the reporter node
     if plan_iterations >= configurable.max_plan_iterations:
         return Command(goto="reporter")
 
     full_response = ""
-    # Use structured output only for remote models
-    if AGENT_LLM_MAP["planner"] == "basic" and not configurable.enable_deep_thinking and not is_local_model:
-        response = llm.invoke(messages)
-        full_response = response.model_dump_json(indent=4, exclude_none=True)
-    else:
-        # For local models or reasoning models, use streaming
+    # Use streaming for high reasoning effort or local models
+    if reasoning_effort == "high" or is_local_model:
         response = llm.stream(messages)
         for chunk in response:
             full_response += chunk.content
+    else:
+        # For low reasoning effort with structured output
+        try:
+            response = llm.invoke(messages)
+            if hasattr(response, 'model_dump_json'):
+                full_response = response.model_dump_json(indent=4, exclude_none=True)
+            else:
+                full_response = response.content
+        except Exception:
+            # Fallback to streaming if structured output fails
+            response = llm.stream(messages)
+            for chunk in response:
+                full_response += chunk.content
     
     logger.debug(f"Current state messages: {state['messages']}")
     logger.info(f"Planner response: {full_response}")
@@ -231,8 +251,16 @@ def coordinator_node(
     logger.info("Coordinator talking.")
     configurable = Configuration.from_runnable_config(config)
     messages = apply_prompt_template("coordinator", state)
+    
+    # COORDINATOR STAGE: Force fast mode for quick user interaction
+    # Use low reasoning effort for fast response
+    logger.info("Coordinator using fast mode (low reasoning effort)")
+    
     response = (
-        get_llm_by_type(AGENT_LLM_MAP["coordinator"])
+        get_llm_with_reasoning_effort(
+            llm_type=AGENT_LLM_MAP["coordinator"], 
+            reasoning_effort="low"  # Fast mode
+        )
         .bind_tools([handoff_to_planner])
         .invoke(messages)
     )
@@ -294,24 +322,63 @@ def reporter_node(state: State, config: RunnableConfig):
     # Add a reminder about the new report format, citation style, and table usage
     invoke_messages.append(
         HumanMessage(
-            content="IMPORTANT: Structure your report according to the format in the prompt. Remember to include:\n\n1. Key Points - A bulleted list of the most important findings\n2. Overview - A brief introduction to the topic\n3. Detailed Analysis - Organized into logical sections\n4. Survey Note (optional) - For more comprehensive reports\n5. Key Citations - List all references at the end\n\nFor citations, DO NOT include inline citations in the text. Instead, place all citations in the 'Key Citations' section at the end using the format: `- [Source Title](URL)`. Include an empty line between each citation for better readability.\n\nPRIORITIZE USING MARKDOWN TABLES for data presentation and comparison. Use tables whenever presenting comparative data, statistics, features, or options. Structure tables with clear headers and aligned columns. Example table format:\n\n| Feature | Description | Pros | Cons |\n|---------|-------------|------|------|\n| Feature 1 | Description 1 | Pros 1 | Cons 1 |\n| Feature 2 | Description 2 | Pros 2 | Cons 2 |",
-            name="system",
+            content=(
+                "\n\n# Important Report Guidelines\n\n"
+                "## Report Structure\n"
+                "Please structure your research report with these sections:\n"
+                "1. **Executive Summary** - Brief overview of key findings\n"
+                "2. **Introduction** - Context and research objectives\n"
+                "3. **Methodology** - How the research was conducted\n"
+                "4. **Findings** - Detailed analysis and discoveries\n"
+                "5. **Discussion** - Interpretation and implications\n"
+                "6. **Conclusion** - Summary and future directions\n\n"
+                "## Citation Requirements\n"
+                "- Use numbered citations [1], [2], etc. for all sources\n"
+                "- Include a 'References' section at the end with full URLs\n"
+                "- Format: [1] Title, URL, (Access Date)\n"
+                "- Cite sources immediately after relevant statements\n\n"
+                "## Visual Elements\n"
+                "- Use markdown tables for data comparison\n"
+                "- Use bullet points for key insights\n"
+                "- Include relevant statistics and numbers\n"
+                "- Use headers to organize content clearly\n\n"
+                f"## Available Research Data\n"
+                f"You have access to {len(observations)} research observations to support your analysis.\n"
+            )
         )
     )
 
-    for observation in observations:
-        invoke_messages.append(
-            HumanMessage(
-                content=f"Below are some observations for the research task:\n\n{observation}",
-                name="observation",
+    # Add observations to the conversation
+    for obs in observations:
+        if hasattr(obs, "observation"):
+            invoke_messages.append(
+                HumanMessage(content=f"**Research Data**: {obs.observation}")
             )
-        )
-    logger.debug(f"Current invoke messages: {invoke_messages}")
-    response = get_llm_by_type(AGENT_LLM_MAP["reporter"]).invoke(invoke_messages)
-    response_content = response.content
-    logger.info(f"reporter response: {response_content}")
 
-    return {"final_report": response_content}
+    # REPORTER STAGE: Force high reasoning mode for quality report generation
+    # Always use high reasoning effort for final report to ensure quality
+    logger.info("Reporter using high reasoning mode for quality report generation")
+    
+    response = (
+        get_llm_with_reasoning_effort(
+            llm_type=AGENT_LLM_MAP["reporter"], 
+            reasoning_effort="high"  # Force high reasoning for quality
+        )
+        .stream(invoke_messages)
+    )
+
+    full_response = ""
+    for chunk in response:
+        full_response += chunk.content
+
+    return Command(
+        update={
+            "messages": [
+                AIMessage(content=full_response, name="reporter"),
+            ]
+        },
+        goto="__end__",
+    )
 
 
 def research_team_node(state: State):

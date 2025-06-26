@@ -24,7 +24,7 @@ def crawl_tool(
         if article and hasattr(article, 'to_markdown'):
             content = article.to_markdown()
             if content:
-                return f"URL: {url}\n\nContent:\n{content[:2000]}"
+                return f"URL: {url}\n\nContent:\n{content[:5000]}"
             else:
                 return f"URL: {url}\n\nContent: [Empty content extracted]"
         else:
