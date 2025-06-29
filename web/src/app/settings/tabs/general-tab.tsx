@@ -110,7 +110,7 @@ export const GeneralTab: Tab = ({
                     <Input
                       className="w-60"
                       type="number"
-                      defaultValue={field.value}
+                      value={field.value}
                       min={1}
                       onChange={(event) =>
                         field.onChange(parseInt(event.target.value || "0"))
@@ -134,7 +134,7 @@ export const GeneralTab: Tab = ({
                     <Input
                       className="w-60"
                       type="number"
-                      defaultValue={field.value}
+                      value={field.value}
                       min={1}
                       onChange={(event) =>
                         field.onChange(parseInt(event.target.value || "0"))
@@ -158,7 +158,7 @@ export const GeneralTab: Tab = ({
                     <Input
                       className="w-60"
                       type="number"
-                      defaultValue={field.value}
+                      value={field.value}
                       min={1}
                       onChange={(event) =>
                         field.onChange(parseInt(event.target.value || "0"))

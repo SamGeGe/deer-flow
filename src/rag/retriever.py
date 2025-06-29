@@ -49,13 +49,11 @@ class Document:
 
 
 class Resource(BaseModel):
-    """
-    Resource is a class that represents a resource.
-    """
+    """Resource model for retrieval."""
 
-    uri: str = Field(..., description="The URI of the resource")
-    title: str = Field(..., description="The title of the resource")
-    description: str | None = Field("", description="The description of the resource")
+    uri: str = Field(..., description="资源的URI")
+    title: str = Field(..., description="资源的标题")
+    description: str | None = Field("", description="资源的描述")
 
 
 class Retriever(abc.ABC):

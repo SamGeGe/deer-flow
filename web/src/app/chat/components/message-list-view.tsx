@@ -10,7 +10,7 @@ import {
   ChevronRight,
   Lightbulb,
 } from "lucide-react";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { LoadingAnimation } from "~/components/deer-flow/loading-animation";
 import { Markdown } from "~/components/deer-flow/markdown";
@@ -29,6 +29,8 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import { Input } from "~/components/ui/input";
+import { Textarea } from "~/components/ui/textarea";
 import {
   Collapsible,
   CollapsibleContent,
@@ -260,17 +262,24 @@ function ResearchCard({
   const openResearchId = useStore((state) => state.openResearchId);
   const state = useMemo(() => {
     if (hasReport) {
-      return reportGenerating ? "Generating report..." : "Report generated";
+      return reportGenerating ? "正在生成报告..." : "报告已生成";
     }
-    return "Researching...";
+          return "研究中...";
   }, [hasReport, reportGenerating]);
   const msg = useResearchMessage(researchId);
   const title = useMemo(() => {
-    if (msg) {
-      return parseJSON(msg.content ?? "", { title: "" }).title;
+    if (msg && msg.content) {
+      // 改进：支持流式传输期间的部分JSON解析
+      try {
+        const result = parseJSON(msg.content, { title: "" });
+        return result.title || "深度研究";
+      } catch (error) {
+        console.debug('Failed to parse research title:', error);
+        return "深度研究";
+      }
     }
-    return undefined;
-  }, [msg]);
+    return "深度研究";
+  }, [msg?.content]); // 移除对 isStreaming 的依赖，实时解析
   const handleOpen = useCallback(() => {
     if (openResearchId === researchId) {
       closeResearch();
@@ -283,8 +292,8 @@ function ResearchCard({
     <Card className={cn("w-full", className)}>
       <CardHeader>
         <CardTitle>
-          <RainbowText animated={state !== "Report generated"}>
-            {title !== undefined && title !== "" ? title : "Deep Research"}
+                      <RainbowText animated={state !== "报告已生成"}>
+            {title}
           </RainbowText>
         </CardTitle>
       </CardHeader>
@@ -297,7 +306,7 @@ function ResearchCard({
             variant={!openResearchId ? "default" : "outline"}
             onClick={handleOpen}
           >
-            {researchId !== openResearchId ? "Open" : "Close"}
+            {researchId !== openResearchId ? "打开" : "关闭"}
           </Button>
         </div>
       </CardFooter>
@@ -358,7 +367,7 @@ function ThoughtBlock({
                   isStreaming ? "text-primary" : "text-foreground",
                 )}
               >
-                Deep Thinking
+                深度思考
               </span>
               {isStreaming && <LoadingAnimation className="ml-2 scale-75" />}
               <div className="flex-grow" />
@@ -412,7 +421,7 @@ function ThoughtBlock({
   );
 }
 
-const GREETINGS = ["Cool", "Sounds great", "Looks good", "Great", "Awesome"];
+const GREETINGS = ["很棒", "听起来不错", "看起来很好", "太好了", "太棒了"];
 function PlanCard({
   className,
   message,
@@ -436,8 +445,105 @@ function PlanCard({
     thought?: string;
     steps?: { title?: string; description?: string }[];
   }>(() => {
-    return parseJSON(message.content ?? "", {});
-  }, [message.content]);
+    // 改进：实时解析JSON，不等待流式传输完成
+    if (!message.content) {
+      return {};
+    }
+    
+    try {
+      // 使用改进的JSON解析器
+      const result = parseJSON(message.content, {});
+      
+      // 添加详细的调试信息
+      if (message.agent === 'planner' || message.agent === 'coordinator') {
+        const typedResult = result as any; // 临时类型断言用于调试
+        console.debug('计划解析详情:', {
+          agent: message.agent,
+          messageId: message.id,
+          isStreaming: message.isStreaming,
+          contentLength: message.content?.length || 0,
+          contentPreview: message.content?.substring(0, 200) + '...',
+          parsedKeys: result ? Object.keys(result) : [],
+          hasTitle: !!typedResult?.title,
+          hasThought: !!typedResult?.thought,
+          hasSteps: !!typedResult?.steps,
+          stepsCount: Array.isArray(typedResult?.steps) ? typedResult.steps.length : 0,
+          result
+        });
+        
+        // 验证解析结果的质量
+        if (result && typeof result === 'object') {
+          if (!typedResult.title && !typedResult.thought && !typedResult.steps) {
+            console.warn('解析结果为空对象，可能存在JSON格式问题:', {
+              agent: message.agent,
+              rawContent: message.content
+            });
+          }
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('计划解析失败:', {
+        agent: message.agent,
+        messageId: message.id,
+        error,
+        contentLength: message.content?.length || 0,
+        contentSample: message.content?.substring(0, 300) + '...'
+      });
+      return {};
+    }
+  }, [message.content, message.agent, message.id]); // 添加messageId依赖
+
+  // 编辑状态管理
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedPlan, setEditedPlan] = useState(plan);
+
+  // 当原始计划更新时，同步编辑状态
+  useEffect(() => {
+    if (!isEditing) {
+      setEditedPlan(plan);
+    }
+  }, [plan, isEditing]);
+
+  // 编辑步骤函数
+  const updateStep = useCallback((stepIndex: number, field: 'title' | 'description', value: string) => {
+    setEditedPlan(prev => ({
+      ...prev,
+      steps: prev.steps?.map((step, i) => 
+        i === stepIndex ? { ...step, [field]: value } : step
+      ) || []
+    }));
+  }, []);
+
+  // 更新标题和思考
+  const updatePlanField = useCallback((field: 'title' | 'thought', value: string) => {
+    setEditedPlan(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
+
+  // 保存编辑
+  const handleSaveEdit = useCallback(() => {
+    if (onSendMessage) {
+      // 将编辑后的计划发送给后端
+      const editedPlanJson = JSON.stringify(editedPlan);
+      onSendMessage(
+        `Plan updated: ${editedPlanJson}`,
+        {
+          interruptFeedback: `[EDIT_PLAN] ${editedPlanJson}`,
+        },
+      );
+    }
+    setIsEditing(false);
+  }, [editedPlan, onSendMessage]);
+
+  // 取消编辑
+  const handleCancelEdit = useCallback(() => {
+    setEditedPlan(plan);
+    setIsEditing(false);
+  }, [plan]);
 
   const reasoningContent = message.reasoningContent;
   const hasMainContent = Boolean(
@@ -447,20 +553,20 @@ function PlanCard({
   // 判断是否正在思考：有推理内容但还没有主要内容
   const isThinking = Boolean(reasoningContent && !hasMainContent);
 
-  // 判断是否应该显示计划：有主要内容就显示（无论是否还在流式传输）
-  const shouldShowPlan = hasMainContent;
+  // 改进：即使在流式传输期间也显示已解析的计划内容
+  const shouldShowPlan = hasMainContent && (plan.title || plan.thought || plan.steps);
+  
   const handleAccept = useCallback(async () => {
     if (onSendMessage) {
       onSendMessage(
-        `${GREETINGS[Math.floor(Math.random() * GREETINGS.length)]}! ${
-          Math.random() > 0.5 ? "Let's get started." : "Let's start."
-        }`,
+        `${GREETINGS[Math.floor(Math.random() * GREETINGS.length)]}`,
         {
           interruptFeedback: "accepted",
         },
       );
     }
   }, [onSendMessage]);
+  
   return (
     <div className={cn("w-full", className)}>
       {reasoningContent && (
@@ -479,66 +585,150 @@ function PlanCard({
           <Card className="w-full">
             <CardHeader>
               <CardTitle>
-                <Markdown animated={message.isStreaming}>
-                  {`### ${
-                    plan.title !== undefined && plan.title !== ""
-                      ? plan.title
-                      : "Deep Research"
-                  }`}
-                </Markdown>
+                {isEditing ? (
+                  <Input
+                    value={editedPlan.title || ""}
+                    onChange={(e) => updatePlanField('title', e.target.value)}
+                    placeholder="研究计划标题"
+                    className="text-xl font-bold"
+                  />
+                ) : (
+                  <Markdown animated={message.isStreaming}>
+                    {`### ${
+                      plan.title && plan.title.trim() !== ""
+                        ? plan.title
+                        : "深度研究"
+                    }`}
+                  </Markdown>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Markdown className="opacity-80" animated={message.isStreaming}>
-                {plan.thought}
-              </Markdown>
-              {plan.steps && (
-                <ul className="my-2 flex list-decimal flex-col gap-4 border-l-[2px] pl-8">
-                  {plan.steps.map((step, i) => (
-                    <li key={`step-${i}`}>
-                      <h3 className="mb text-lg font-medium">
-                        <Markdown animated={message.isStreaming}>
-                          {step.title}
-                        </Markdown>
-                      </h3>
-                      <div className="text-muted-foreground text-sm">
-                        <Markdown animated={message.isStreaming}>
-                          {step.description}
-                        </Markdown>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+              {(plan.thought || isEditing) && (
+                <div className="mb-4">
+                  {isEditing ? (
+                    <Textarea
+                      value={editedPlan.thought || ""}
+                      onChange={(e) => updatePlanField('thought', e.target.value)}
+                      placeholder="研究思路和背景..."
+                      className="min-h-20"
+                    />
+                  ) : (
+                    <Markdown className="opacity-80" animated={message.isStreaming}>
+                      {plan.thought}
+                    </Markdown>
+                  )}
+                </div>
+              )}
+              {((plan.steps && plan.steps.length > 0) || isEditing) && (
+                <div className="my-2">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">研究步骤</h4>
+                  <ul className="flex list-decimal flex-col gap-4 border-l-[2px] pl-8">
+                    {isEditing ? (
+                      editedPlan.steps?.map((step, i) => (
+                        <li key={`edit-step-${i}`} className="space-y-2">
+                          <Input
+                            value={step.title || ""}
+                            onChange={(e) => updateStep(i, 'title', e.target.value)}
+                            placeholder={`步骤 ${i + 1} 标题`}
+                            className="font-medium"
+                          />
+                          <Textarea
+                            value={step.description || ""}
+                            onChange={(e) => updateStep(i, 'description', e.target.value)}
+                            placeholder={`步骤 ${i + 1} 详细描述`}
+                            className="text-sm min-h-16"
+                          />
+                        </li>
+                      ))
+                    ) : (
+                      plan.steps?.map((step, i) => (
+                        <li key={`step-${i}`}>
+                          <h3 className="mb text-lg font-medium">
+                            <Markdown animated={message.isStreaming}>
+                              {step.title}
+                            </Markdown>
+                          </h3>
+                          <div className="text-muted-foreground text-sm">
+                            <Markdown animated={message.isStreaming}>
+                              {step.description}
+                            </Markdown>
+                          </div>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
               )}
             </CardContent>
             <CardFooter className="flex justify-end">
-              {!message.isStreaming && interruptMessage?.options?.length && (
+              {!message.isStreaming && (
                 <motion.div
                   className="flex gap-2"
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: 0.3 }}
                 >
-                  {interruptMessage?.options.map((option) => (
-                    <Button
-                      key={option.value}
-                      variant={
-                        option.value === "accepted" ? "default" : "outline"
-                      }
-                      disabled={!waitForFeedback}
-                      onClick={() => {
-                        if (option.value === "accepted") {
-                          void handleAccept();
-                        } else {
-                          onFeedback?.({
-                            option,
-                          });
-                        }
-                      }}
-                    >
-                      {option.text}
-                    </Button>
-                  ))}
+                  {isEditing ? (
+                    // 编辑模式按钮
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                      >
+                        取消
+                      </Button>
+                      <Button
+                        variant="default"
+                        onClick={handleSaveEdit}
+                      >
+                        保存计划
+                      </Button>
+                    </>
+                  ) : (
+                    // 非编辑模式按钮
+                    interruptMessage?.options?.length ? (
+                      interruptMessage.options.map((option) => (
+                        <Button
+                          key={option.value}
+                          variant={
+                            option.value === "accepted" ? "default" : "outline"
+                          }
+                          disabled={!waitForFeedback}
+                          onClick={() => {
+                            if (option.value === "accepted") {
+                              void handleAccept();
+                            } else if (option.value === "edit_plan") {
+                              // 进入编辑模式
+                              setIsEditing(true);
+                            } else {
+                              onFeedback?.({
+                                option,
+                              });
+                            }
+                          }}
+                        >
+                          {option.text}
+                        </Button>
+                      ))
+                    ) : (
+                      // 默认按钮（如果没有interrupt选项）
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsEditing(true)}
+                        >
+                          编辑计划
+                        </Button>
+                        <Button
+                          variant="default"
+                          onClick={handleAccept}
+                        >
+                          开始研究
+                        </Button>
+                      </>
+                    )
+                  )}
                 </motion.div>
               )}
             </CardFooter>
@@ -577,20 +767,20 @@ function PodcastCard({
             {!hasError ? (
               <RainbowText animated={isGenerating}>
                 {isGenerating
-                  ? "Generating podcast..."
+                  ? "正在生成播客..."
                   : isPlaying
-                  ? "Now playing podcast..."
-                  : "Podcast"}
+                  ? "正在播放播客..."
+                  : "播客"}
               </RainbowText>
-            ) : (
-              <div className="text-red-500">
-                Error when generating podcast. Please try again.
-              </div>
-            )}
+                          ) : (
+                <div className="text-red-500">
+                  生成播客时出错，请重试。
+                </div>
+              )}
           </div>
           {!hasError && !isGenerating && (
             <div className="flex">
-              <Tooltip title="Download podcast">
+              <Tooltip title="下载播客">
                 <Button variant="ghost" size="icon" asChild>
                   <a
                     href={audioUrl}

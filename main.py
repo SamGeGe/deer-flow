@@ -98,7 +98,7 @@ def main(
 
 if __name__ == "__main__":
     # Set up argument parser
-    parser = argparse.ArgumentParser(description="Run the Deer")
+    parser = argparse.ArgumentParser(description="运行 Deer")
     parser.add_argument("query", nargs="*", help="The query to process")
     parser.add_argument(
         "--interactive",

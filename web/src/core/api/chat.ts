@@ -44,7 +44,7 @@ export async function* chatStream(
   ) 
     return yield* chatReplayStream(userMessage, params, options);
   
-  try{
+  try {
     const stream = fetchStream(resolveServiceURL("chat/stream").toString(), {
       body: JSON.stringify({
         messages: [{ role: "user", content: userMessage }],
@@ -53,21 +53,116 @@ export async function* chatStream(
       signal: options.abortSignal,
     });
     
+    let eventCount = 0;
+    let parseErrors = 0;
+    
     for await (const event of stream) {
+      eventCount++;
+      
       try {
+        // 增强的JSON解析逻辑
+        let parsedData;
+        
+        if (!event.data) {
+          // 空数据事件，提供默认值
+          parsedData = {};
+        } else {
+          try {
+            // 首先尝试标准JSON解析
+            parsedData = JSON.parse(event.data);
+          } catch (parseError) {
+            parseErrors++;
+            
+            // 只在开发环境显示详细错误日志
+            if (process.env.NODE_ENV === 'development') {
+              console.debug(`JSON解析失败 (事件 ${eventCount})：`, {
+                eventType: event.event,
+                dataLength: event.data?.length || 0,
+                error: parseError instanceof Error ? parseError.message : String(parseError)
+              });
+            }
+            
+            // 尝试使用增强的JSON解析器
+            try {
+              const { parse } = await import("best-effort-json-parser");
+              parsedData = parse(event.data);
+              
+              if (process.env.NODE_ENV === 'development') {
+                console.debug(`Best-effort解析成功 (事件 ${eventCount})`);
+              }
+            } catch (bestEffortError) {
+              // 静默处理预期内的流式解析错误
+              parseErrors++;
+              
+              // 如果是message_chunk事件，尝试提供安全的默认值
+              if (event.event === 'message_chunk') {
+                parsedData = {
+                  content: "",
+                  id: `fallback-${eventCount}`,
+                  role: "assistant",
+                  agent: "unknown"
+                };
+              } else {
+                // 跳过这个损坏的事件
+                continue;
+              }
+            }
+          }
+        }
+        
+        // 验证解析后的数据结构
+        if (!parsedData || typeof parsedData !== 'object') {
+          console.warn(`解析后数据无效 (事件 ${eventCount}):`, parsedData);
+          continue;
+        }
+        
+        // 为重要字段提供默认值
+        if (event.event === 'message_chunk' && parsedData) {
+          parsedData.content = parsedData.content || "";
+          parsedData.id = parsedData.id || `chunk-${eventCount}`;
+          parsedData.role = parsedData.role || "assistant";
+        }
+        
+        // 输出调试信息（仅在开发环境）
+        if (process.env.NODE_ENV === 'development' && (event.event === 'message_chunk' || event.event === 'activity')) {
+          console.debug(`流式事件 ${eventCount}:`, {
+            type: event.event,
+            agent: parsedData.agent,
+            contentLength: parsedData.content?.length || 0,
+            hasReasoningContent: !!parsedData.reasoning_content,
+            parseErrors
+          });
+        }
+        
         yield {
           type: event.event,
-          data: JSON.parse(event.data),
+          data: parsedData,
         } as ChatEvent;
-      } catch (parseError) {
-        console.error('JSON parse error for event:', event.event, parseError);
-        console.error('Raw data:', event.data);
-        // 跳过这个损坏的事件，继续处理下一个
+        
+      } catch (eventError) {
+        console.error(`事件处理错误 (事件 ${eventCount}):`, {
+          eventType: event.event,
+          error: eventError,
+          event
+        });
+        // 继续处理下一个事件，不中断流
         continue;
       }
     }
-  }catch(e){
-    console.error(e);
+    
+    // 流结束时的统计信息
+    if (process.env.NODE_ENV === 'development') {
+      console.info('流式传输完成:', {
+        totalEvents: eventCount,
+        parseErrors,
+        errorRate: parseErrors / eventCount
+      });
+    }
+    
+  } catch (streamError) {
+    console.error('流式传输错误:', streamError);
+    // 抛出错误以便上层处理
+    throw streamError;
   }
 }
 

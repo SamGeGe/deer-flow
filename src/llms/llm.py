@@ -141,7 +141,60 @@ def get_llm_with_reasoning_effort(
             
             return ChatDeepSeek(**merged_conf)
     
+    # For ChatOpenAI instances (including QwQ models), we'll handle /no_think at the message level
+    # Store the reasoning effort preference on the LLM instance for later use
+    if hasattr(base_llm, '_reasoning_effort') or reasoning_effort:
+        base_llm._reasoning_effort = reasoning_effort
+    
     return base_llm
+
+
+def add_no_think_if_needed(messages: list, llm, reasoning_effort: str = None) -> list:
+    """
+    Add /no_think directive to messages when low reasoning effort is requested.
+    
+    根据QwQ官方文档，no_think控制存在稳定性问题，因此我们需要在每个用户消息中
+    都添加/no_think来确保一致的行为。
+    
+    Args:
+        messages: List of messages to send to the LLM
+        llm: The LLM instance
+        reasoning_effort: The reasoning effort level
+    
+    Returns:
+        Modified messages list with /no_think added if appropriate
+    """
+    # Get reasoning effort from parameter or LLM instance
+    effort = reasoning_effort or getattr(llm, '_reasoning_effort', None)
+    
+    # Add /no_think for any model when using low reasoning effort
+    if effort == "low":
+        modified_messages = []
+        for msg in messages:
+            if isinstance(msg, dict):
+                # Handle dict-style messages
+                if msg.get("role") == "user" and msg.get("content"):
+                    content = msg["content"]
+                    # 强制添加/no_think，即使已经存在（确保稳定性）
+                    if not content.strip().endswith("/no_think"):
+                        content = content.rstrip() + " /no_think"
+                    modified_messages.append({**msg, "content": content})
+                else:
+                    modified_messages.append(msg)
+            else:
+                # Handle LangChain message objects
+                from langchain_core.messages import HumanMessage
+                if isinstance(msg, HumanMessage):
+                    content = msg.content
+                    # 强制添加/no_think，即使已经存在（确保稳定性）
+                    if not content.strip().endswith("/no_think"):
+                        content = content.rstrip() + " /no_think"
+                    modified_messages.append(HumanMessage(content=content))
+                else:
+                    modified_messages.append(msg)
+        return modified_messages
+    
+    return messages
 
 
 def get_configured_llm_models() -> dict[str, list[str]]:

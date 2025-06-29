@@ -16,8 +16,8 @@ from src.rag import Document, Retriever, Resource, build_retriever
 logger = logging.getLogger(__name__)
 
 
-class RetrieverInput(BaseModel):
-    keywords: str = Field(description="search keywords to look up")
+class SearchInput(BaseModel):
+    keywords: str = Field(description="搜索关键词")
 
 
 class RetrieverTool(BaseTool):
@@ -25,7 +25,7 @@ class RetrieverTool(BaseTool):
     description: str = (
         "Useful for retrieving information from the file with `rag://` uri prefix, it should be higher priority than the web search or writing code. Input should be a search keywords."
     )
-    args_schema: Type[BaseModel] = RetrieverInput
+    args_schema: Type[BaseModel] = SearchInput
 
     retriever: Retriever = Field(default_factory=Retriever)
     resources: list[Resource] = Field(default_factory=list)
@@ -48,7 +48,18 @@ class RetrieverTool(BaseTool):
         keywords: str,
         run_manager: Optional[AsyncCallbackManagerForToolRun] = None,
     ) -> list[Document]:
-        return self._run(keywords, run_manager.get_sync())
+        # Safer async implementation to avoid callback errors
+        try:
+            logger.info(
+                f"Async retriever tool query: {keywords}", extra={"resources": self.resources}
+            )
+            documents = self.retriever.query_relevant_documents(keywords, self.resources)
+            if not documents:
+                return "No results found from the local knowledge base."
+            return [doc.to_dict() for doc in documents]
+        except Exception as e:
+            logger.error(f"Async retriever error: {e}")
+            return "Error occurred while searching local knowledge base."
 
 
 def get_retriever_tool(resources: List[Resource]) -> RetrieverTool | None:

@@ -4,12 +4,12 @@
 import json
 import logging
 import os
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Union, Optional
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
-from langgraph.types import Command, interrupt
+from langgraph.types import Command, interrupt, Send
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from src.agents import create_agent
@@ -24,9 +24,9 @@ from src.tools import (
 from src.config.agents import AGENT_LLM_MAP
 from src.config.configuration import Configuration
 from src.config import load_yaml_config
-from src.llms.llm import get_llm_by_type, _get_config_file_path, get_llm_with_reasoning_effort
-from src.prompts.planner_model import Plan
-from src.prompts.template import apply_prompt_template
+from src.llms.llm import get_llm_by_type, _get_config_file_path, get_llm_with_reasoning_effort, add_no_think_if_needed
+from src.prompts.planner_model import Plan, StepType
+from src.prompts.template import apply_prompt_template, get_prompt_template
 from src.utils.json_utils import repair_json_output
 
 from .types import State
@@ -47,16 +47,21 @@ def handoff_to_planner(
 
 
 def background_investigation_node(state: State, config: RunnableConfig):
-    logger.info("background investigation node is running.")
+    """Background investigation node that gathers information about the query before planning."""
+    logger.info("后台调查节点正在运行")
     configurable = Configuration.from_runnable_config(config)
     query = state.get("research_topic", "")
     
     # Simple and safe implementation that always succeeds
     try:
-        logger.info(f"Performing background investigation for: {query}")
+        logger.info(f"正在对以下内容进行后台调查: {query}")
         
         # For now, provide a simple background context
         # This avoids the complex tool calling issues while maintaining functionality
+        # NOTE: If this node ever uses LLM calls in the future, make sure to add:
+        # llm = get_llm_with_reasoning_effort(AGENT_LLM_MAP["background_investigator"], "low")
+        # messages = add_no_think_if_needed(messages, llm, "low")
+        
         result_content = f"""Background investigation completed for: {query}
 
 ## Initial Context
@@ -69,14 +74,14 @@ Based on the research topic "{query}", relevant areas for investigation include:
 
 This background provides context for developing a comprehensive research plan."""
         
-        logger.info("Background investigation completed successfully")
+        logger.info("后台调查成功完成")
         
         return {
             "background_investigation_results": result_content
         }
         
     except Exception as e:
-        logger.error(f"Error in background investigation: {e}")
+        logger.error(f"后台调查出错: {e}")
         # Always return a safe result to avoid breaking the workflow
         return {
             "background_investigation_results": f"Background investigation completed for topic: {query}. Ready to proceed with detailed research."
@@ -86,109 +91,78 @@ This background provides context for developing a comprehensive research plan.""
 def planner_node(
     state: State, config: RunnableConfig
 ) -> Command[Literal["human_feedback", "reporter"]]:
-    """Planner node that generate the full plan."""
-    logger.info("Planner generating full plan")
+    """Planner node that makes or updates a plan for the research."""
+    logger.info("规划员正在生成完整计划")
     configurable = Configuration.from_runnable_config(config)
-    plan_iterations = state["plan_iterations"] if state.get("plan_iterations", 0) else 0
-    messages = apply_prompt_template("planner", state, configurable)
-
-    if state.get("enable_background_investigation") and state.get(
-        "background_investigation_results"
-    ):
-        messages += [
-            {
-                "role": "user",
-                "content": (
-                    "background investigation results of user query:\n"
-                    + state["background_investigation_results"]
-                    + "\n"
-                ),
-            }
-        ]
-
-    # Check if we're using a local model (heuristic: if base_url contains localhost or local IP)
-    llm_config = load_yaml_config(_get_config_file_path()).get("BASIC_MODEL", {})
-    base_url = llm_config.get("base_url", "")
-    is_local_model = ("localhost" in base_url or 
-                     "127.0.0.1" in base_url or 
-                     "192.168." in base_url or 
-                     "10." in base_url)
-
-    # PLANNER STAGE: Use reasoning effort based on iteration count and deep thinking setting
-    # First iteration: fast mode, refinement iterations: high reasoning if enabled
-    if configurable.enable_deep_thinking and plan_iterations >= 1:
-        reasoning_effort = "high"  # Deep thinking for plan refinement
-    else:
-        reasoning_effort = "low"   # Fast mode for initial planning
+    plan_iterations = state.get("plan_iterations", 0)
+    max_plan_iterations = configurable.max_plan_iterations
     
-    logger.info(f"Planner using reasoning effort: {reasoning_effort} (iterations: {plan_iterations})")
+    logger.info("Planner generating full plan")
     
-    # Get LLM with appropriate reasoning effort
-    llm = get_llm_with_reasoning_effort(
-        llm_type=AGENT_LLM_MAP["planner"], 
-        reasoning_effort=reasoning_effort
-    )
-    
-    # For structured output, bind it if we're using remote models and not using high reasoning
-    if AGENT_LLM_MAP["planner"] == "basic" and reasoning_effort == "low" and not is_local_model:
-        try:
-            llm = llm.with_structured_output(Plan, method="json_mode")
-        except Exception:
-            # If structured output fails, continue with regular LLM
-            pass
-
-    # if the plan iterations is greater than the max plan iterations, return the reporter node
-    if plan_iterations >= configurable.max_plan_iterations:
+    # Check if plan iterations exceeded - go directly to reporter
+    if plan_iterations >= max_plan_iterations:
+        logger.info(f"计划迭代次数 {plan_iterations} >= 最大值 {max_plan_iterations}，转到报告员")
         return Command(goto="reporter")
-
-    full_response = ""
-    # Use streaming for high reasoning effort or local models
-    if reasoning_effort == "high" or is_local_model:
-        response = llm.stream(messages)
-        for chunk in response:
-            full_response += chunk.content
-    else:
-        # For low reasoning effort with structured output
-        try:
-            response = llm.invoke(messages)
-            if hasattr(response, 'model_dump_json'):
-                full_response = response.model_dump_json(indent=4, exclude_none=True)
-            else:
-                full_response = response.content
-        except Exception:
-            # Fallback to streaming if structured output fails
-            response = llm.stream(messages)
-            for chunk in response:
-                full_response += chunk.content
     
-    logger.debug(f"Current state messages: {state['messages']}")
-    logger.info(f"Planner response: {full_response}")
-
+    # Get LLM and messages
+    llm = get_llm_with_reasoning_effort(AGENT_LLM_MAP["planner"], "low")
+    messages = apply_prompt_template("planner", state, configurable)
+    
+    # Convert to LangChain messages if needed
+    langchain_messages = []
+    for msg in messages:
+        if isinstance(msg, dict):
+            if msg["role"] == "system":
+                langchain_messages.append(SystemMessage(content=msg["content"]))
+            elif msg["role"] == "user":
+                langchain_messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                langchain_messages.append(AIMessage(content=msg["content"]))
+        else:
+            langchain_messages.append(msg)
+    
+    # Add /no_think for low reasoning effort
+    langchain_messages = add_no_think_if_needed(langchain_messages, llm, "low")
+    logger.info("为规划员添加了 /no_think")
+    
+    # Use safer LLM invocation to avoid callback issues
+    full_response = ""
+    
+    try:
+        # Use simple invoke instead of streaming to avoid callback issues
+        response = llm.invoke(langchain_messages)
+        full_response = response.content if hasattr(response, 'content') else str(response)
+        logger.info(f"LLM响应: {len(full_response)} 字符")
+    except Exception as e:
+        logger.error(f"LLM调用失败: {e}")
+        return Command(goto="__end__")
+    
+    # Parse JSON response
     try:
         curr_plan = json.loads(repair_json_output(full_response))
+        logger.info(f"解析的计划: has_enough_context={curr_plan.get('has_enough_context')}")
     except json.JSONDecodeError as e:
-        logger.warning(f"Planner response is not a valid JSON: {e}")
-        logger.warning(f"Raw response: {full_response[:500]}...")  # Log first 500 chars for debugging
+        logger.error(f"JSON解析失败: {e}")
         if plan_iterations > 0:
             return Command(goto="reporter")
-        else:
-            return Command(goto="__end__")
+        return Command(goto="__end__")
+    
+    # Route based on has_enough_context - but let the router function handle the actual routing
     if curr_plan.get("has_enough_context"):
-        logger.info("Planner response has enough context.")
         new_plan = Plan.model_validate(curr_plan)
         return Command(
             update={
                 "messages": [AIMessage(content=full_response, name="planner")],
                 "current_plan": new_plan,
-            },
-            goto="reporter",
+            }
         )
+    
+    # Return with string plan for human feedback
     return Command(
         update={
             "messages": [AIMessage(content=full_response, name="planner")],
             "current_plan": full_response,
-        },
-        goto="human_feedback",
+        }
     )
 
 
@@ -199,84 +173,211 @@ def human_feedback_node(
     # check if the plan is auto accepted
     auto_accepted_plan = state.get("auto_accepted_plan", False)
     if not auto_accepted_plan:
-        feedback = interrupt("Please Review the Plan.")
+        # Provide clear options for the user
+        feedback = interrupt("Please review the research plan and choose an action:")
 
-        # if the feedback is not accepted, return the planner node
-        if feedback and str(feedback).upper().startswith("[EDIT_PLAN]"):
+        # Handle user feedback
+        if feedback and str(feedback).lower() == "edit_plan":
+            # User wants to edit the plan, go back to planner with edit instruction
             return Command(
                 update={
                     "messages": [
-                        HumanMessage(content=feedback, name="feedback"),
+                        HumanMessage(content="[EDIT_PLAN] Please revise the research plan based on user feedback.", name="feedback"),
                     ],
                 },
                 goto="planner",
             )
-        elif feedback and str(feedback).upper().startswith("[ACCEPTED]"):
-            logger.info("Plan is accepted by user.")
+        elif feedback and str(feedback).lower() == "accepted":
+            logger.info("用户接受了计划")
         else:
-            raise TypeError(f"Interrupt value of {feedback} is not supported.")
+            # For any string feedback that starts with [EDIT_PLAN], extract and use the edited plan
+            if feedback and str(feedback).upper().startswith("[EDIT_PLAN]"):
+                try:
+                    # Extract the JSON plan from the feedback
+                    feedback_str = str(feedback)
+                    # Find the JSON part after [EDIT_PLAN]
+                    json_start = feedback_str.find("{")
+                    if json_start != -1:
+                        edited_plan_json = feedback_str[json_start:]
+                        # Parse and validate the edited plan
+                        edited_plan_data = json.loads(edited_plan_json)
+                        
+                        # Ensure the plan has required fields
+                        if "title" not in edited_plan_data:
+                            edited_plan_data["title"] = "Deep Research"
+                        if "thought" not in edited_plan_data:
+                            edited_plan_data["thought"] = ""
+                        if "steps" not in edited_plan_data:
+                            edited_plan_data["steps"] = []
+                        if "has_enough_context" not in edited_plan_data:
+                            edited_plan_data["has_enough_context"] = False
+                        if "locale" not in edited_plan_data:
+                            edited_plan_data["locale"] = state.get("locale", "en-US")
+                        
+                        # Ensure each step has required fields
+                        for i, step in enumerate(edited_plan_data["steps"]):
+                            if "need_search" not in step:
+                                step["need_search"] = True  # Default to True for research steps
+                            if "step_type" not in step:
+                                step["step_type"] = "research"  # Default to research
+                            if "execution_res" not in step:
+                                step["execution_res"] = None
+                        
+                        logger.info(f"使用编辑的计划: title='{edited_plan_data['title']}', steps={len(edited_plan_data.get('steps', []))}")
+                        
+                        # Use the edited plan directly, no need to go back to planner
+                        plan_iterations = state.get("plan_iterations", 0) + 1
+                        goto = "research_team" if not edited_plan_data["has_enough_context"] else "reporter"
+                        
+                        return Command(
+                            update={
+                                "messages": [
+                                    HumanMessage(content=f"Plan updated by user: {edited_plan_data['title']}", name="feedback"),
+                                ],
+                                "current_plan": Plan.model_validate(edited_plan_data),
+                                "plan_iterations": plan_iterations,
+                                "locale": edited_plan_data["locale"],
+                            },
+                            goto=goto,
+                        )
+                    else:
+                        logger.warning("在EDIT_PLAN反馈中未找到有效的JSON，返回规划员")
+                        return Command(
+                            update={
+                                "messages": [
+                                    HumanMessage(content=feedback, name="feedback"),
+                                ],
+                            },
+                            goto="planner",
+                        )
+                except json.JSONDecodeError as e:
+                    logger.error(f"解析编辑计划JSON失败: {e}，返回规划员")
+                    return Command(
+                        update={
+                            "messages": [
+                                HumanMessage(content=feedback, name="feedback"),
+                            ],
+                        },
+                        goto="planner",
+                    )
+            elif feedback and str(feedback).upper().startswith("[ACCEPTED]"):
+                logger.info("用户接受了计划")
+            else:
+                logger.warning(f"意外的中断反馈: {feedback}，视为已接受")
+                # Default to accepting the plan to avoid workflow interruption
 
     # if the plan is accepted, run the following node
-    plan_iterations = state["plan_iterations"] if state.get("plan_iterations", 0) else 0
+    plan_iterations = state.get("plan_iterations", 0)
     goto = "research_team"
-    try:
-        current_plan = repair_json_output(current_plan)
-        # increment the plan iterations
-        plan_iterations += 1
-        # parse the plan
-        new_plan = json.loads(current_plan)
-        if new_plan["has_enough_context"]:
-            goto = "reporter"
-    except json.JSONDecodeError:
-        logger.warning("Planner response is not a valid JSON")
-        if plan_iterations > 1:  # the plan_iterations is increased before this check
-            return Command(goto="reporter")
-        else:
+    
+    # Handle both string and Plan object cases
+    if isinstance(current_plan, str):
+        # Current plan is a string - need to parse it
+        try:
+            current_plan = repair_json_output(current_plan)
+            plan_iterations += 1
+            new_plan = json.loads(current_plan)
+            
+            # Ensure the plan has required fields
+            if "locale" not in new_plan:
+                new_plan["locale"] = state.get("locale", "en-US")
+            if "has_enough_context" not in new_plan:
+                new_plan["has_enough_context"] = False
+            if "title" not in new_plan:
+                new_plan["title"] = "Deep Research"
+            if "thought" not in new_plan:
+                new_plan["thought"] = ""
+            if "steps" not in new_plan:
+                new_plan["steps"] = []
+            
+            # Ensure each step has required fields
+            for step in new_plan["steps"]:
+                if "need_search" not in step:
+                    step["need_search"] = True
+                if "step_type" not in step:
+                    step["step_type"] = "research"
+                if "execution_res" not in step:
+                    step["execution_res"] = None
+            
+            if new_plan["has_enough_context"]:
+                goto = "reporter"
+                
+            logger.info(f"Successfully parsed string plan: title='{new_plan['title']}', steps={len(new_plan['steps'])}, goto={goto}")
+            
+            return Command(
+                update={
+                    "current_plan": Plan.model_validate(new_plan),
+                    "plan_iterations": plan_iterations,
+                    "locale": new_plan["locale"],
+                },
+                goto=goto,
+            )
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing failed for string plan: {e}")
+            logger.error(f"Failed plan content: {current_plan[:500]}...")
+            if plan_iterations > 1:
+                return Command(goto="reporter")
+            else:
+                return Command(goto="__end__")
+        except Exception as e:
+            logger.error(f"Unexpected error parsing plan: {e}")
             return Command(goto="__end__")
-
-    return Command(
-        update={
-            "current_plan": Plan.model_validate(new_plan),
-            "plan_iterations": plan_iterations,
-            "locale": new_plan["locale"],
-        },
-        goto=goto,
-    )
+    else:
+        # Current plan is already a Plan object
+        if hasattr(current_plan, 'has_enough_context') and current_plan.has_enough_context:
+            goto = "reporter"
+        
+        logger.info(f"Using existing Plan object: title='{getattr(current_plan, 'title', 'N/A')}', goto={goto}")
+        
+        return Command(
+            update={
+                "plan_iterations": plan_iterations + 1,
+            },
+            goto=goto,
+        )
 
 
 def coordinator_node(
     state: State, config: RunnableConfig
 ) -> Command[Literal["planner", "background_investigator", "__end__"]]:
     """Coordinator node that communicate with customers."""
-    logger.info("Coordinator talking.")
+    logger.info("协调员正在对话")
     configurable = Configuration.from_runnable_config(config)
     messages = apply_prompt_template("coordinator", state)
     
-    # COORDINATOR STAGE: Force fast mode for quick user interaction
-    # Use low reasoning effort for fast response
-    logger.info("Coordinator using fast mode (low reasoning effort)")
+    # Simple LLM setup with low reasoning effort
+    llm = get_llm_with_reasoning_effort(AGENT_LLM_MAP["coordinator"], "low")
     
-    response = (
-        get_llm_with_reasoning_effort(
-            llm_type=AGENT_LLM_MAP["coordinator"], 
-            reasoning_effort="low"  # Fast mode
-        )
-        .bind_tools([handoff_to_planner])
-        .invoke(messages)
-    )
-    logger.debug(f"Current state messages: {state['messages']}")
-
-    goto = "__end__"
-    locale = state.get("locale", "en-US")  # Default locale if not specified
-    research_topic = state.get("research_topic", "")
-
+    # Convert to LangChain messages if needed
+    langchain_messages = []
+    for msg in messages:
+        if isinstance(msg, dict):
+            if msg["role"] == "system":
+                langchain_messages.append(SystemMessage(content=msg["content"]))
+            elif msg["role"] == "user":
+                langchain_messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                langchain_messages.append(AIMessage(content=msg["content"]))
+        else:
+            langchain_messages.append(msg)
+    
+    # Add /no_think for low reasoning effort
+    langchain_messages = add_no_think_if_needed(langchain_messages, llm, "low")
+    logger.info("为协调员添加了 /no_think")
+    
+    # Bind tools and invoke
+    response = llm.bind_tools([handoff_to_planner]).invoke(langchain_messages)
+    logger.info(f"Coordinator response: tool_calls={len(response.tool_calls)}, content_length={len(response.content) if response.content else 0}")
+    
+    # Check if coordinator called handoff_to_planner (research question)
     if len(response.tool_calls) > 0:
-        goto = "planner"
-        if state.get("enable_background_investigation"):
-            # Enable background investigation with improved error handling
-            goto = "background_investigator"
+        # This is a research question - extract parameters and proceed to planner
+        locale = state.get("locale", "en-US")
+        research_topic = state.get("research_topic", "")
+        
         try:
             for tool_call in response.tool_calls:
+                logger.info(f"Processing tool call: {tool_call.get('name', 'unknown')}")
                 if tool_call.get("name", "") != "handoff_to_planner":
                     continue
                 if tool_call.get("args", {}).get("locale") and tool_call.get(
@@ -284,131 +385,97 @@ def coordinator_node(
                 ).get("research_topic"):
                     locale = tool_call.get("args", {}).get("locale")
                     research_topic = tool_call.get("args", {}).get("research_topic")
+                    logger.info(f"Extracted: locale={locale}, research_topic={research_topic}")
                     break
         except Exception as e:
             logger.error(f"Error processing tool calls: {e}")
+        
+        # Return without goto to let router function decide (will go to planner)
+        return Command(
+            update={
+                "locale": locale,
+                "research_topic": research_topic,
+                "resources": configurable.resources,
+            }
+        )
     else:
-        logger.warning(
-            "Coordinator response contains no tool calls. Terminating workflow execution."
+        # This is a simple question/greeting - coordinator handled it directly
+        logger.info("协调员直接处理了请求（简单问题/问候）")
+        
+        # Return the coordinator's direct response and end the workflow
+        return Command(
+            update={
+                "messages": [
+                    AIMessage(content=response.content, name="coordinator"),
+                ],
+                "locale": state.get("locale", "en-US"),
+                "research_topic": "",
+                "resources": configurable.resources,
+            },
+            goto="__end__",
         )
-        logger.debug(f"Coordinator response: {response}")
-
-    return Command(
-        update={
-            "locale": locale,
-            "research_topic": research_topic,
-            "resources": configurable.resources,
-        },
-        goto=goto,
-    )
-
-
-def reporter_node(state: State, config: RunnableConfig):
-    """Reporter node that write a final report."""
-    logger.info("Reporter write final report")
-    configurable = Configuration.from_runnable_config(config)
-    current_plan = state.get("current_plan")
-    input_ = {
-        "messages": [
-            HumanMessage(
-                f"# Research Requirements\n\n## Task\n\n{current_plan.title}\n\n## Description\n\n{current_plan.thought}"
-            )
-        ],
-        "locale": state.get("locale", "en-US"),
-    }
-    invoke_messages = apply_prompt_template("reporter", input_, configurable)
-    observations = state.get("observations", [])
-
-    # Add a reminder about the new report format, citation style, and table usage
-    invoke_messages.append(
-        HumanMessage(
-            content=(
-                "\n\n# Important Report Guidelines\n\n"
-                "## Report Structure\n"
-                "Please structure your research report with these sections:\n"
-                "1. **Executive Summary** - Brief overview of key findings\n"
-                "2. **Introduction** - Context and research objectives\n"
-                "3. **Methodology** - How the research was conducted\n"
-                "4. **Findings** - Detailed analysis and discoveries\n"
-                "5. **Discussion** - Interpretation and implications\n"
-                "6. **Conclusion** - Summary and future directions\n\n"
-                "## Citation Requirements\n"
-                "- Use numbered citations [1], [2], etc. for all sources\n"
-                "- Include a 'References' section at the end with full URLs\n"
-                "- Format: [1] Title, URL, (Access Date)\n"
-                "- Cite sources immediately after relevant statements\n\n"
-                "## Visual Elements\n"
-                "- Use markdown tables for data comparison\n"
-                "- Use bullet points for key insights\n"
-                "- Include relevant statistics and numbers\n"
-                "- Use headers to organize content clearly\n\n"
-                f"## Available Research Data\n"
-                f"You have access to {len(observations)} research observations to support your analysis.\n"
-            )
-        )
-    )
-
-    # Add observations to the conversation
-    for obs in observations:
-        if hasattr(obs, "observation"):
-            invoke_messages.append(
-                HumanMessage(content=f"**Research Data**: {obs.observation}")
-            )
-
-    # REPORTER STAGE: Force high reasoning mode for quality report generation
-    # Always use high reasoning effort for final report to ensure quality
-    logger.info("Reporter using high reasoning mode for quality report generation")
-    
-    response = (
-        get_llm_with_reasoning_effort(
-            llm_type=AGENT_LLM_MAP["reporter"], 
-            reasoning_effort="high"  # Force high reasoning for quality
-        )
-        .stream(invoke_messages)
-    )
-
-    full_response = ""
-    for chunk in response:
-        full_response += chunk.content
-
-    return Command(
-        update={
-            "messages": [
-                AIMessage(content=full_response, name="reporter"),
-            ]
-        },
-        goto="__end__",
-    )
 
 
 def research_team_node(state: State):
-    """Research team node that collaborates on tasks."""
-    logger.info("Research team is collaborating on tasks.")
-    pass
+    """Research team coordination node"""
+    logger.info("研究团队正在协调任务")
+    current_plan = state.get("current_plan")
+    
+    if not current_plan or not hasattr(current_plan, 'steps') or not current_plan.steps:
+        logger.info("没有可用的计划，路由到规划员")
+        return
+    
+    # Find the first unexecuted step
+    for step in current_plan.steps:
+        if not getattr(step, 'execution_res', None):
+            logger.info(f"Processing step: '{step.title}'")
+            step_type = getattr(step, 'step_type', None)
+            if step_type == StepType.RESEARCH:
+                logger.info(f"Routing to researcher for: '{step.title}'")
+            elif step_type == StepType.PROCESSING:
+                logger.info(f"Routing to coder for: '{step.title}'")
+            else:
+                logger.info(f"Unknown step type, routing to planner for: '{step.title}'")
+            # Return to let the router function decide where to go
+            return
+    
+    # All steps are completed
+    logger.info("所有研究步骤已完成，进入报告生成阶段")
+    return
 
 
 async def _execute_agent_step(
-    state: State, agent, agent_name: str
+    state: State, agent, agent_name: str, specific_step=None
 ) -> Command[Literal["research_team"]]:
     """Helper function to execute a step using the specified agent."""
     current_plan = state.get("current_plan")
     observations = state.get("observations", [])
 
-    # Find the first unexecuted step
-    current_step = None
+    # Use specific step if provided (for parallel execution), otherwise find first unexecuted step
+    if specific_step:
+        current_step = specific_step
+        logger.info(f"Executing specific step (parallel): {current_step.title}, agent: {agent_name}")
+    else:
+        # Find the first unexecuted step (legacy serial execution)
+        current_step = None
+        if current_plan and hasattr(current_plan, 'steps'):
+            for step in current_plan.steps:
+                if not getattr(step, 'execution_res', None):
+                    current_step = step
+                    break
+
+        if not current_step:
+            logger.info("All research steps completed, proceeding to report generation")
+            return Command(goto="reporter")
+
+        logger.info(f"Executing step (serial): {current_step.title}, agent: {agent_name}")
+
+    # Get completed steps for context (only if we have access to current_plan)
     completed_steps = []
-    for step in current_plan.steps:
-        if not step.execution_res:
-            current_step = step
-            break
-        else:
-            completed_steps.append(step)
-
-    if not current_step:
-        logger.info("All research steps completed, proceeding to report generation")
-        return Command(goto="reporter")
-
-    logger.info(f"Executing step: {current_step.title}, agent: {agent_name}")
+    if current_plan and hasattr(current_plan, 'steps'):
+        for step in current_plan.steps:
+            if getattr(step, 'execution_res', None):
+                completed_steps.append(step)
 
     # Format completed steps information
     completed_steps_info = ""
@@ -473,27 +540,58 @@ async def _execute_agent_step(
         recursion_limit = default_recursion_limit
 
     logger.info(f"Agent input: {agent_input}")
-    result = await agent.ainvoke(
-        input=agent_input, config={"recursion_limit": recursion_limit}
-    )
+    
+    execution_result = ""
+    try:
+        # 🚀 添加超时机制 - 设置120秒（2分钟）超时，更快恢复
+        import asyncio
+        
+        logger.info(f"Starting agent {agent_name} execution with 120s timeout")
+        result = await asyncio.wait_for(
+            agent.ainvoke(
+                input=agent_input, 
+                config={"recursion_limit": recursion_limit}
+            ),
+            timeout=120.0  # 2分钟超时，更快恢复
+        )
+        
+        # Process the result
+        if not result or "messages" not in result or not result["messages"]:
+            logger.error(f"Agent {agent_name} returned empty or invalid result")
+            execution_result = f"Error: Agent {agent_name} failed to produce valid output"
+        else:
+            response_content = result["messages"][-1].content
+            if not response_content or response_content.strip() == "":
+                logger.warning(f"Agent {agent_name} returned empty content")
+                execution_result = f"Agent {agent_name} completed task but returned empty content"
+            else:
+                execution_result = response_content
+            
+            logger.debug(f"{agent_name.capitalize()} full response: {execution_result}")
+            
+        logger.info(f"Step '{current_step.title}' execution completed by {agent_name}")
+        
+    except asyncio.TimeoutError:
+        logger.error(f"Agent {agent_name} execution timed out after 120 seconds")
+        execution_result = f"Error: Agent {agent_name} timed out after 2 minutes. Task '{current_step.title}' was not completed."
+        logger.info(f"Step '{current_step.title}' failed due to timeout, marked as completed with error")
+    except Exception as e:
+        logger.error(f"Error executing agent {agent_name}: {str(e)}", exc_info=True)
+        execution_result = f"Error: Agent {agent_name} failed with error: {str(e)}"
+        logger.info(f"Step '{current_step.title}' failed, marked as completed with error")
 
-    # Process the result
-    response_content = result["messages"][-1].content
-    logger.debug(f"{agent_name.capitalize()} full response: {response_content}")
-
-    # Update the step with the execution result
-    current_step.execution_res = response_content
-    logger.info(f"Step '{current_step.title}' execution completed by {agent_name}")
+    # Update the step with the execution result (works for both serial and parallel)
+    current_step.execution_res = execution_result
 
     return Command(
         update={
             "messages": [
                 HumanMessage(
-                    content=response_content,
+                    content=execution_result,
                     name=agent_name,
                 )
             ],
-            "observations": observations + [response_content],
+            "observations": observations + [execution_result],
         },
         goto="research_team",
     )
@@ -542,37 +640,49 @@ async def _setup_and_execute_agent_step(
 
     # Create and execute agent with MCP tools if available
     if mcp_servers:
-        async with MultiServerMCPClient(mcp_servers) as client:
+        # Fix: Use the correct MCP client usage pattern as per langchain-mcp-adapters 0.1.0+
+        client = MultiServerMCPClient(mcp_servers)
+        try:
             loaded_tools = default_tools[:]
-            for tool in client.get_tools():
+            tools = await client.get_tools()
+            for tool in tools:
                 if tool.name in enabled_tools:
                     tool.description = (
                         f"Powered by '{enabled_tools[tool.name]}'.\n{tool.description}"
                     )
                     loaded_tools.append(tool)
-            agent = create_agent(agent_type, agent_type, loaded_tools, agent_type)
-            return await _execute_agent_step(state, agent, agent_type)
+            agent = create_agent(agent_type, agent_type, loaded_tools, agent_type, "low")
+            # IMPORTANT: Pass specific_step=None to ensure serial execution mode
+            return await _execute_agent_step(state, agent, agent_type, specific_step=None)
+        except Exception as e:
+            logger.warning(f"MCP client error: {e}, falling back to default tools")
+            # Fallback to default tools if MCP fails
+            agent = create_agent(agent_type, agent_type, default_tools, agent_type, "low")
+            # IMPORTANT: Pass specific_step=None to ensure serial execution mode
+            return await _execute_agent_step(state, agent, agent_type, specific_step=None)
     else:
         # Use default tools if no MCP servers are configured
-        agent = create_agent(agent_type, agent_type, default_tools, agent_type)
-        return await _execute_agent_step(state, agent, agent_type)
+        agent = create_agent(agent_type, agent_type, default_tools, agent_type, "low")
+        # IMPORTANT: Pass specific_step=None to ensure serial execution mode
+        return await _execute_agent_step(state, agent, agent_type, specific_step=None)
 
 
 async def researcher_node(
     state: State, config: RunnableConfig
 ) -> Command[Literal["research_team"]]:
     """Researcher node that do research"""
-    logger.info("Researcher node is researching.")
+    logger.info("研究员节点正在进行研究")
     configurable = Configuration.from_runnable_config(config)
     tools = [get_web_search_tool(configurable.max_search_results), crawl_tool]
     retriever_tool = get_retriever_tool(state.get("resources", []))
     if retriever_tool:
         tools.insert(0, retriever_tool)
     logger.info(f"Researcher tools: {tools}")
+    
     return await _setup_and_execute_agent_step(
         state,
         config,
-        "researcher",
+        "researcher", 
         tools,
     )
 
@@ -580,11 +690,143 @@ async def researcher_node(
 async def coder_node(
     state: State, config: RunnableConfig
 ) -> Command[Literal["research_team"]]:
-    """Coder node that do code analysis."""
-    logger.info("Coder node is coding.")
+    """Coder node that do code analysis"""
+    logger.info("编程员节点正在编程")
+    
     return await _setup_and_execute_agent_step(
         state,
         config,
         "coder",
         [python_repl_tool],
+    )
+
+
+async def reporter_node(state: State, config: RunnableConfig):
+    """Reporter node that write a final report."""
+    logger.info("报告员正在撰写最终报告")
+    
+    configurable = Configuration.from_runnable_config(config)
+    current_plan = state.get("current_plan")
+    input_ = {
+        "messages": [
+            HumanMessage(
+                f"# Research Requirements\n\n## Task\n\n{current_plan.title}\n\n## Description\n\n{current_plan.thought}"
+            )
+        ],
+        "locale": state.get("locale", "en-US"),
+    }
+    invoke_messages = apply_prompt_template("reporter", input_, configurable)
+    observations = state.get("observations", [])
+
+    # Add citation reminder
+    invoke_messages.append(
+        HumanMessage(
+            content=(
+                "\n\n# IMPORTANT REPORT GUIDELINES\n\n"
+                "## Report Structure\n"
+                "Please write your research report with the following structure:\n"
+                "1. **Executive Summary** - Brief overview of key findings\n"
+                "2. **Introduction** - Background and research objectives\n"
+                "3. **Methodology** - How the research was conducted\n"
+                "4. **Findings** - Detailed analysis and discoveries\n"
+                "5. **Discussion** - Interpretation and implications\n"
+                "6. **Conclusion** - Summary and future directions\n\n"
+                "## Citation Requirements\n"
+                "- Use numbered citations [1], [2], etc. for all sources\n"
+                "- Include a References section at the end with full URLs\n"
+                "- Format: [1] Title, URL, (Access date)\n"
+                "- Cite sources immediately after relevant statements\n\n"
+                "## Visual Elements\n"
+                "- Use markdown tables for data comparisons\n"
+                "- Use bullet points for key insights\n"
+                "- Include relevant statistics and figures\n"
+                "- Use headings to organize content clearly\n\n"
+                f"## Available Research Data\n"
+                f"You have access to {len(observations)} research observations to support your analysis."
+            )
+        )
+    )
+
+    # Add observations to the conversation
+    for obs in observations:
+        if hasattr(obs, "observation"):
+            invoke_messages.append(
+                HumanMessage(content=f"**Research Data**: {obs.observation}")
+            )
+
+    # Report generation: Use high reasoning mode for quality assurance
+    logger.info("报告员使用高推理模式进行高质量报告生成")
+    
+    llm = get_llm_with_reasoning_effort(
+        llm_type=AGENT_LLM_MAP["reporter"], 
+        reasoning_effort="high"
+    )
+    
+    try:
+        # 🚀 添加超时机制 - 为高推理模式设置10分钟超时
+        import asyncio
+        
+        logger.info("开始报告生成，设置10分钟超时保护")
+        response = await asyncio.wait_for(
+            llm.ainvoke(invoke_messages),
+            timeout=600.0  # 10分钟超时，适应高推理模式的复杂任务
+        )
+        
+        full_response = response.content if hasattr(response, 'content') else str(response)
+        logger.info(f"报告员响应完成，长度: {len(full_response)}")
+        
+    except asyncio.TimeoutError:
+        logger.error("报告生成在10分钟后超时，生成基础报告")
+        full_response = f"""# 报告生成超时
+
+## 执行摘要
+
+由于复杂性原因，完整报告的生成超时。基于已收集的研究数据，提供以下基础分析：
+
+## 研究发现
+
+已成功收集了 {len(observations)} 项研究数据，包含以下关键信息：
+
+{chr(10).join([f"- 研究发现 {i+1}: {str(obs)[:200]}..." for i, obs in enumerate(observations[:5])])}
+
+## 结论
+
+研究任务"{current_plan.title}"已收集到相关数据，但由于模型推理复杂度较高，完整报告生成超时。
+建议：
+1. 尝试简化研究问题
+2. 使用更快的模型配置
+3. 分阶段进行深入分析
+
+## 说明
+
+此报告由于超时限制自动生成。如需完整深度分析，请考虑调整系统配置或使用更高性能的推理模型。"""
+        
+    except Exception as e:
+        logger.error(f"报告员调用失败: {e}")
+        full_response = f"""# 报告生成错误
+
+## 错误信息
+
+在生成研究报告"{current_plan.title}"时发生错误：{str(e)}
+
+## 收集的数据概要
+
+尽管报告生成失败，系统已成功收集了 {len(observations)} 项研究数据。
+
+## 建议
+
+1. 检查网络连接和模型配置
+2. 尝试重新运行研究任务
+3. 如问题持续存在，请联系技术支持
+
+此为自动生成的错误报告。"""
+
+    return Command(
+        update={
+            "messages": [
+                AIMessage(content=full_response, name="reporter"),
+            ],
+            "final_report": full_response,
+        },
+        goto="__end__",
     )

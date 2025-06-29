@@ -34,8 +34,11 @@ export default async function RootLayout({
   // Config will be loaded on the client side instead
   let conf = {};
   
-  // Only load config on server-side in development mode (non-Docker)
-  if (process.env.NODE_ENV === 'development' && !process.env.DOCKER_ENV) {
+  // 检测是否在Docker环境中：如果API_URL是相对路径，则很可能在Docker中
+  const isDockerEnv = process.env.NEXT_PUBLIC_API_URL?.startsWith('/') || process.env.NODE_ENV === 'production';
+  
+  // Only load config on server-side in development mode and non-Docker environment
+  if (process.env.NODE_ENV === 'development' && !isDockerEnv) {
     try {
       conf = await loadConfig();
     } catch (error) {

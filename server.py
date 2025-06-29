@@ -32,7 +32,7 @@ signal.signal(signal.SIGINT, handle_shutdown)
 
 if __name__ == "__main__":
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Run the DeerFlow API server")
+    parser = argparse.ArgumentParser(description="运行 DeerFlow API 服务器")
     parser.add_argument(
         "--reload",
         action="store_true",

@@ -24,12 +24,19 @@ export function resolveServiceURL(path: string): URL {
   if (process.env.NEXT_PUBLIC_API_URL) {
     baseUrl = process.env.NEXT_PUBLIC_API_URL;
     
-    // 如果是相对路径（如 "/api"），需要构造完整URL
-    if (baseUrl.startsWith('/') && typeof window !== 'undefined') {
-      const protocol = window.location.protocol;
-      const hostname = window.location.hostname;
-      const port = window.location.port;
-      baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}${baseUrl}`;
+    // 如果是相对路径（如 "/api"）
+    if (baseUrl.startsWith('/')) {
+      // 在浏览器环境中，构造完整URL
+      if (typeof window !== 'undefined') {
+        const protocol = window.location.protocol;
+        const hostname = window.location.hostname;
+        const port = window.location.port;
+        baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}${baseUrl}`;
+      } else {
+        // 在服务器端且是相对路径时，抛出可预期的错误
+        // 这允许上级代码优雅地处理这种情况
+        throw new Error(`Cannot resolve relative API URL "${baseUrl}" in server-side context. This is expected in Docker environments.`);
+      }
     }
   }
   // Priority 2: Fallback for browser environment during local development.

@@ -128,7 +128,7 @@ export function ResearchBlock({
         <div className="absolute right-4 flex h-9 items-center justify-center">
           {hasReport && !reportStreaming && (
             <>
-              <Tooltip title="Generate podcast">
+              <Tooltip title="生成播客">
                 <Button
                   className="text-gray-400"
                   size="icon"
@@ -139,7 +139,7 @@ export function ResearchBlock({
                   <Headphones />
                 </Button>
               </Tooltip>
-              <Tooltip title="Edit">
+              <Tooltip title="编辑">
                 <Button
                   className="text-gray-400"
                   size="icon"
@@ -150,7 +150,7 @@ export function ResearchBlock({
                   {editing ? <Undo2 /> : <Pencil />}
                 </Button>
               </Tooltip>
-              <Tooltip title="Copy">
+              <Tooltip title="复制">
                 <Button
                   className="text-gray-400"
                   size="icon"
@@ -185,7 +185,7 @@ export function ResearchBlock({
               </DropdownMenu>
             </>
           )}
-          <Tooltip title="Close">
+          <Tooltip title="关闭">
             <Button
               className="text-gray-400"
               size="sm"
@@ -210,10 +210,10 @@ export function ResearchBlock({
                 value="report"
                 disabled={!hasReport}
               >
-                Report
+                报告
               </TabsTrigger>
               <TabsTrigger className="px-8" value="activities">
-                Activities
+                活动
               </TabsTrigger>
             </TabsList>
           </div>

@@ -31,7 +31,7 @@ class FallbackSearchTool(BaseTool):
     """搜索工具，支持从 Tavily 回退到 DuckDuckGo"""
     
     name: str = "web_search"
-    description: str = "Search the web for information"
+    description: str = "搜索网络信息"
     max_search_results: int = 5  # 添加字段定义
     tavily_tool: Optional[BaseTool] = None
     duckduckgo_tool: Optional[BaseTool] = None

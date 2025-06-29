@@ -7,42 +7,42 @@ from pydantic import BaseModel, Field
 
 
 class MCPServerMetadataRequest(BaseModel):
-    """Request model for MCP server metadata."""
+    """MCP服务器元数据的请求模型。"""
 
     transport: str = Field(
-        ..., description="The type of MCP server connection (stdio or sse)"
+        ..., description="MCP服务器连接的类型（stdio或sse）"
     )
     command: Optional[str] = Field(
-        None, description="The command to execute (for stdio type)"
+        None, description="要执行的命令（用于stdio类型）"
     )
     args: Optional[List[str]] = Field(
-        None, description="Command arguments (for stdio type)"
+        None, description="命令参数（用于stdio类型）"
     )
     url: Optional[str] = Field(
-        None, description="The URL of the SSE server (for sse type)"
+        None, description="SSE服务器的URL（用于sse类型）"
     )
-    env: Optional[Dict[str, str]] = Field(None, description="Environment variables")
+    env: Optional[Dict[str, str]] = Field(None, description="环境变量")
     timeout_seconds: Optional[int] = Field(
-        None, description="Optional custom timeout in seconds for the operation"
+        None, description="操作的可选自定义超时时间（秒）"
     )
 
 
 class MCPServerMetadataResponse(BaseModel):
-    """Response model for MCP server metadata."""
+    """MCP服务器元数据的响应模型。"""
 
     transport: str = Field(
-        ..., description="The type of MCP server connection (stdio or sse)"
+        ..., description="MCP服务器连接的类型（stdio或sse）"
     )
     command: Optional[str] = Field(
-        None, description="The command to execute (for stdio type)"
+        None, description="要执行的命令（用于stdio类型）"
     )
     args: Optional[List[str]] = Field(
-        None, description="Command arguments (for stdio type)"
+        None, description="命令参数（用于stdio类型）"
     )
     url: Optional[str] = Field(
-        None, description="The URL of the SSE server (for sse type)"
+        None, description="SSE服务器的URL（用于sse类型）"
     )
-    env: Optional[Dict[str, str]] = Field(None, description="Environment variables")
+    env: Optional[Dict[str, str]] = Field(None, description="环境变量")
     tools: List = Field(
-        default_factory=list, description="Available tools from the MCP server"
+        default_factory=list, description="来自MCP服务器的可用工具"
     )
