@@ -511,7 +511,7 @@ async def _execute_agent_step(
 
         agent_input["messages"].append(
             HumanMessage(
-                content="IMPORTANT: DO NOT include inline citations in the text. Instead, track all sources and include a References section at the end using link reference format. Include an empty line between each citation for better readability. Use this format for each reference:\n- [Source Title](URL)\n\n- [Another Source](URL)",
+                content="重要：请勿在正文中使用内联引用。请在文末单独设置参考文献部分，使用链接引用格式。为了更好的可读性，每个引用之间留空行。请使用以下格式：\n- [资料标题](网址)\n\n- [另一个资料](网址)",
                 name="system",
             )
         )
@@ -543,16 +543,16 @@ async def _execute_agent_step(
     
     execution_result = ""
     try:
-        # 🚀 添加超时机制 - 设置120秒（2分钟）超时，更快恢复
+        # 🚀 添加超时机制 - 设置180秒（3分钟）超时，提高成功率
         import asyncio
         
-        logger.info(f"Starting agent {agent_name} execution with 120s timeout")
+        logger.info(f"Starting agent {agent_name} execution with 180s timeout")
         result = await asyncio.wait_for(
             agent.ainvoke(
                 input=agent_input, 
                 config={"recursion_limit": recursion_limit}
             ),
-            timeout=120.0  # 2分钟超时，更快恢复
+            timeout=180.0  # 3分钟超时，减少研究任务超时失败
         )
         
         # Process the result
@@ -572,8 +572,8 @@ async def _execute_agent_step(
         logger.info(f"Step '{current_step.title}' execution completed by {agent_name}")
         
     except asyncio.TimeoutError:
-        logger.error(f"Agent {agent_name} execution timed out after 120 seconds")
-        execution_result = f"Error: Agent {agent_name} timed out after 2 minutes. Task '{current_step.title}' was not completed."
+        logger.error(f"Agent {agent_name} execution timed out after 180 seconds")
+        execution_result = f"Error: Agent {agent_name} timed out after 3 minutes. Task '{current_step.title}' was not completed."
         logger.info(f"Step '{current_step.title}' failed due to timeout, marked as completed with error")
     except Exception as e:
         logger.error(f"Error executing agent {agent_name}: {str(e)}", exc_info=True)
@@ -722,27 +722,27 @@ async def reporter_node(state: State, config: RunnableConfig):
     invoke_messages.append(
         HumanMessage(
             content=(
-                "\n\n# IMPORTANT REPORT GUIDELINES\n\n"
-                "## Report Structure\n"
-                "Please write your research report with the following structure:\n"
-                "1. **Executive Summary** - Brief overview of key findings\n"
-                "2. **Introduction** - Background and research objectives\n"
-                "3. **Methodology** - How the research was conducted\n"
-                "4. **Findings** - Detailed analysis and discoveries\n"
-                "5. **Discussion** - Interpretation and implications\n"
-                "6. **Conclusion** - Summary and future directions\n\n"
-                "## Citation Requirements\n"
-                "- Use numbered citations [1], [2], etc. for all sources\n"
-                "- Include a References section at the end with full URLs\n"
-                "- Format: [1] Title, URL, (Access date)\n"
-                "- Cite sources immediately after relevant statements\n\n"
-                "## Visual Elements\n"
-                "- Use markdown tables for data comparisons\n"
-                "- Use bullet points for key insights\n"
-                "- Include relevant statistics and figures\n"
-                "- Use headings to organize content clearly\n\n"
-                f"## Available Research Data\n"
-                f"You have access to {len(observations)} research observations to support your analysis."
+                "\n\n# 重要报告撰写指导\n\n"
+                "## 报告结构\n"
+                "请按照以下结构撰写研究报告：\n"
+                "1. **执行摘要** - 关键发现的简要概述\n"
+                "2. **引言** - 背景和研究目标\n"
+                "3. **研究方法** - 研究过程描述\n"
+                "4. **研究发现** - 详细分析和发现\n"
+                "5. **讨论分析** - 解释和影响\n"
+                "6. **结论** - 总结和未来方向\n\n"
+                "## 引用要求\n"
+                "- 对所有来源使用编号引用 [1], [2] 等\n"
+                "- 在文末包含参考文献部分，包含完整网址\n"
+                "- 格式：[1] 标题, 网址, (访问日期)\n"
+                "- 在相关陈述后立即引用来源\n\n"
+                "## 视觉元素\n"
+                "- 使用markdown表格进行数据对比\n"
+                "- 使用要点列表展示关键见解\n"
+                "- 包含相关统计数据和图表\n"
+                "- 使用标题清晰组织内容\n\n"
+                f"## 可用研究数据\n"
+                f"您可以使用 {len(observations)} 项研究观察结果来支持您的分析。"
             )
         )
     )
@@ -754,34 +754,42 @@ async def reporter_node(state: State, config: RunnableConfig):
                 HumanMessage(content=f"**Research Data**: {obs.observation}")
             )
 
-    # Report generation: Use high reasoning mode for quality assurance
-    logger.info("报告员使用高推理模式进行高质量报告生成")
+    # Report generation: Use low reasoning mode for faster and more stable generation
+    logger.info("报告员使用低推理模式进行稳定快速报告生成")
     
     llm = get_llm_with_reasoning_effort(
         llm_type=AGENT_LLM_MAP["reporter"], 
-        reasoning_effort="high"
+        reasoning_effort="low"
     )
     
+    # Add /no_think for low reasoning effort (following coordinator_node pattern)
+    invoke_messages = add_no_think_if_needed(invoke_messages, llm, "low")
+    logger.info("为报告员添加了 /no_think，使用低推理模式")
+    
     try:
-        # 🚀 添加超时机制 - 为高推理模式设置10分钟超时
+        # 🚀 添加超时机制 - 为低推理模式设置5分钟超时（更合理的时间）
         import asyncio
         
-        logger.info("开始报告生成，设置10分钟超时保护")
+        logger.info("开始报告生成，设置5分钟超时保护")
+        logger.info(f"正在处理 {len(observations)} 项研究数据...")
+        
         response = await asyncio.wait_for(
             llm.ainvoke(invoke_messages),
-            timeout=600.0  # 10分钟超时，适应高推理模式的复杂任务
+            timeout=300.0  # 5分钟超时，适应低推理模式的快速生成
         )
         
         full_response = response.content if hasattr(response, 'content') else str(response)
-        logger.info(f"报告员响应完成，长度: {len(full_response)}")
+        logger.info(f"报告生成成功完成！")
+        logger.info(f"报告总字数: {len(full_response)} 字符")
+        logger.info(f"基于 {len(observations)} 项研究发现生成最终报告")
         
     except asyncio.TimeoutError:
-        logger.error("报告生成在10分钟后超时，生成基础报告")
+        logger.error("报告生成在5分钟后超时，生成基础报告")
         full_response = f"""# 报告生成超时
 
 ## 执行摘要
 
-由于复杂性原因，完整报告的生成超时。基于已收集的研究数据，提供以下基础分析：
+由于网络或模型响应延迟，完整报告生成超时。基于已收集的研究数据，提供以下基础分析：
 
 ## 研究发现
 

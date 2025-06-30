@@ -421,7 +421,7 @@ function ThoughtBlock({
   );
 }
 
-const GREETINGS = ["很棒", "听起来不错", "看起来很好", "太好了", "太棒了"];
+const GREETINGS = ["启动深度研究并生成报告"];
 function PlanCard({
   className,
   message,

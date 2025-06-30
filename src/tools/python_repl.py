@@ -41,7 +41,7 @@ def preprocess_python_code(code: str) -> str:
     # 匹配 {variable_name 中文} 模式 - 这是最常见的错误
     pattern1 = r'\{([a-zA-Z_][a-zA-Z0-9_]*)(\s+[\u4e00-\u9fff][^}]*)\}'
     code = re.sub(pattern1, fix_variable_space_chinese, code)
-    
+        
     # 方法2：修复格式说明符后面跟空格和中文的情况  
     # 错误：{variable:.4f 倍}
     # 正确：{variable:.4f} 倍
@@ -128,7 +128,7 @@ def python_repl_tool(code: Annotated[str, "Python code to execute"]) -> str:
         
         logger.info("Code execution successful")
         return f"Successfully executed:\n```python\n{processed_code}\n```\n{result}"
-    
+
     except Exception as e:
         logger.error(f"Error executing code: {str(e)}")
         return f"Error executing code:\n```python\n{processed_code if 'processed_code' in locals() else code}\n```\nError: {str(e)}"

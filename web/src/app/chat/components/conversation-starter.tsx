@@ -8,10 +8,10 @@ import { cn } from "~/lib/utils";
 import { Welcome } from "./welcome";
 
 const questions = [
-  "埃菲尔铁塔比世界上最高的建筑高多少倍？",
-  "特斯拉电池的平均使用寿命与汽油发动机相比有多少年？",
-  "生产1公斤牛肉需要多少升水？",
-  "光速是声速的多少倍？",
+  "全域土地综合整治与传统土地整理项目区别",
+  "人工智能（AI）如何与空间地理信息行业结合",
+  "全域土地综合整治实施步骤与落地流程",
+  "在数据敏感的单位本地化部署人工智能（AI）的优势",
 ];
 export function ConversationStarter({
   className,

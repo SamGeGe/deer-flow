@@ -28,10 +28,10 @@ export function resolveServiceURL(path: string): URL {
     if (baseUrl.startsWith('/')) {
       // 在浏览器环境中，构造完整URL
       if (typeof window !== 'undefined') {
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        const port = window.location.port;
-        baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}${baseUrl}`;
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      const port = window.location.port;
+      baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}${baseUrl}`;
       } else {
         // 在服务器端且是相对路径时，抛出可预期的错误
         // 这允许上级代码优雅地处理这种情况
