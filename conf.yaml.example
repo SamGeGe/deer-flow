@@ -1,0 +1,64 @@
+# DeerFlow LLM 模型配置文件模板
+# 复制此文件为 conf.yaml 并根据您的需求修改配置
+# cp conf.yaml.example conf.yaml
+
+# 基础模型配置 - 用于一般对话和文本生成 (必需)
+BASIC_MODEL:
+  # OpenAI GPT-4 示例
+  model: "gpt-4o"
+  api_key: "YOUR_OPENAI_API_KEY"
+  base_url: "https://api.openai.com/v1"
+  
+  # 或者使用国产模型示例：
+  # 字节跳动豆包模型
+  # model: "doubao-1.5-pro-32k-250115"
+  # api_key: "YOUR_DOUBAO_API_KEY"
+  # base_url: "https://ark.cn-beijing.volces.com/api/v3"
+  
+  # 或者阿里云通义千问
+  # model: "qwen-max-latest"
+  # api_key: "YOUR_QWEN_API_KEY"
+  # base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  
+  # 或者深度求索DeepSeek
+  # model: "deepseek-chat"
+  # api_key: "YOUR_DEEPSEEK_API_KEY"
+  # base_url: "https://api.deepseek.com"
+  
+  # 或者使用 Ollama 本地模型
+  # model: "qwen2.5:7b"
+  # api_key: "whatever"
+  # base_url: "http://localhost:11434/v1"
+
+# 推理模型配置 - 用于复杂推理任务 (可选)
+# 目前主要支持 DeepSeek 推理模型
+REASONING_MODEL:
+  model: "deepseek-reasoner"
+  api_key: "YOUR_DEEPSEEK_API_KEY"
+  base_url: "https://api.deepseek.com"
+
+# 视觉模型配置 - 用于图像理解和多模态任务 (可选)
+VISION_MODEL:
+  model: "gpt-4o"
+  api_key: "YOUR_OPENAI_API_KEY"
+  base_url: "https://api.openai.com/v1"
+  
+  # 或者使用谷歌Gemini视觉模型
+  # model: "gemini-2.0-flash"
+  # api_key: "YOUR_GOOGLE_API_KEY"
+  # base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+# 配置说明：
+# 1. 至少需要配置 BASIC_MODEL 才能正常使用
+# 2. REASONING_MODEL 和 VISION_MODEL 是可选的
+# 3. 支持通过环境变量覆盖配置，格式为：{MODEL_TYPE}__参数名
+#    例如：BASIC_MODEL__api_key=your_api_key
+# 4. 环境变量的优先级高于配置文件中的设置
+# 5. 更多配置选项请参考 docs/configuration_guide.md
+
+# API 密钥获取地址：
+# - OpenAI: https://platform.openai.com/api-keys
+# - 深度求索: https://platform.deepseek.com/api-keys
+# - 通义千问: https://bailian.console.aliyun.com/
+# - 豆包: https://console.volcengine.com/ark
+# - Gemini: https://aistudio.google.com/app/apikey 

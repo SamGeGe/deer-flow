@@ -57,36 +57,40 @@ docker compose pull && docker compose up -d
 nano .env
 
 # 主要配置项：
-SEARCH_API=tavily                    # 搜索引擎
-TAVILY_API_KEY=your_api_key         # Tavily API密钥（可选）
+SEARCH_API=bocha                     # 搜索引擎
+BOCHA_API_KEY=sk-your-api-key       # 博查AI API密钥（推荐）
+TAVILY_API_KEY=tvly-your-api-key    # Tavily API密钥（可选）
 NEXT_PUBLIC_API_URL=/api            # API路径（相对路径）
 ```
 
-### 模型配置 (conf.yaml)
-```bash
-# 编辑模型配置
-nano conf.yaml
-
-# 参考配置指南
-cat docs/configuration_guide.md
-```
+更多配置说明请参考：[配置指南](docs/configuration_guide.md)
 
 ## 🔍 搜索引擎配置
 
-### 使用DuckDuckGo（默认，无需API密钥）
+### 使用博查AI（推荐中文搜索）
 ```bash
-# .env文件中设置
-SEARCH_API=duckduckgo
+# 设置博查AI API密钥
+./set-bocha-key.sh sk-your-bocha-api-key
+
+# 或手动编辑.env
+SEARCH_API=bocha
+BOCHA_API_KEY=sk-your-api-key
 ```
 
-### 使用Tavily（推荐，需要API密钥）
+### 使用Tavily（推荐英文搜索）
 ```bash
 # 设置Tavily API密钥
-./set-tavily-key.sh your_tavily_api_key
+./set-tavily-key.sh tvly-your-tavily-api-key
 
 # 或手动编辑.env
 SEARCH_API=tavily
-TAVILY_API_KEY=your_api_key
+TAVILY_API_KEY=tvly-your-api-key
+```
+
+### 使用DuckDuckGo（免费，无需API密钥）
+```bash
+# .env文件中设置
+SEARCH_API=duckduckgo
 ```
 
 ## 🔒 安全配置

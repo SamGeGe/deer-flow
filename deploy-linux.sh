@@ -175,18 +175,25 @@ setup_environment() {
         log_success ".env 文件已存在"
     fi
     
-    # 检查配置文件
+    # 检查 conf.yaml 文件
     if [ ! -f "conf.yaml" ]; then
         if [ -f "conf.yaml.example" ]; then
-            log_warning "未找到 conf.yaml，请参考 conf.yaml.example 创建配置文件"
-            log_info "或访问 docs/configuration_guide.md 查看配置指南"
+            log_info "创建 conf.yaml 配置文件..."
+            cp conf.yaml.example conf.yaml
+            log_success "conf.yaml 文件已从模板创建"
+            log_warning "请编辑 conf.yaml 文件配置您的 LLM 模型 API 密钥"
         else
-            log_error "未找到配置文件模板，请检查项目完整性"
-            exit 1
+            log_warning "未找到 conf.yaml 和 conf.yaml.example 文件"
         fi
+        log_info "LLM 模型配置说明："
+        log_info "  - 编辑 conf.yaml 文件配置 LLM 模型"
+        log_info "  - 参考 docs/configuration_guide.md 获取详细配置指南"
+        log_info "  - 支持 OpenAI、深度求索、通义千问、豆包等模型"
     else
-        log_success "配置文件检查完成"
+        log_success "conf.yaml 配置文件已存在"
     fi
+    
+    log_success "环境配置完成"
 }
 
 # 配置防火墙
@@ -263,12 +270,19 @@ show_deployment_info() {
     echo ""
     echo "📚 配置说明："
     echo "   - 编辑 .env 文件配置环境变量"
-    echo "   - 编辑 conf.yaml 文件配置模型"
+    echo "   - 编辑 conf.yaml 文件配置 LLM 模型"
     echo "   - 查看 docs/configuration_guide.md 获取详细配置指南"
     echo ""
+    echo "🤖 LLM 模型："
+    echo "   - 支持: OpenAI GPT-4o, 深度求索, 通义千问, 豆包等"
+    echo "   - 配置文件: conf.yaml"
+    echo "   - 获取 API 密钥后编辑配置文件即可使用"
+    echo ""
     echo "🔍 搜索引擎："
-    echo "   - 当前使用: DuckDuckGo (无需API密钥)"
+    echo "   - 当前默认: 博查AI (中文优化搜索)"
+    echo "   - 如需使用博查: ./set-bocha-key.sh your_api_key"
     echo "   - 如需使用Tavily: ./set-tavily-key.sh your_api_key"
+    echo "   - 也支持: DuckDuckGo (无需API密钥), Brave Search, Arxiv"
     echo ""
     echo "⚠️  注意事项："
     echo "   - 确保防火墙开放了4051端口"

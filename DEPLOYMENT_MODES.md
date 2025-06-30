@@ -65,37 +65,55 @@ DeerFlow 支持两种独立的本地部署模式，每种模式使用不同的�
 | API 文档 | http://localhost:9001/docs | http://localhost:8000/docs |
 | 热重载 | ✅ 支持 | ❌ 不支持 |
 | 容器化 | ❌ 本地运行 | ✅ Docker 容器 |
-| 搜索引擎 | Tavily → DuckDuckGo | Tavily → DuckDuckGo |
+| 搜索引擎 | 博查AI → DuckDuckGo | 博查AI → DuckDuckGo |
 | 适用场景 | 开发调试 | 生产部署 |
 
 ## 🔍 搜索引擎配置
 
-DeerFlow 支持智能搜索引擎回退机制：
+DeerFlow 支持多种搜索引擎，智能回退机制：
 
-1. **优先使用 Tavily** (推荐)
-   - 功能更强大，支持图片搜索
-   - 需要 API 密钥 (免费额度可用)
+1. **博查AI** (推荐中文搜索)
+   - 专为中文优化，1秒响应时间
+   - 高质量中文内容，数据合规不出海
+   - 获取地址: https://www.bochaai.com/
+
+2. **Tavily** (推荐英文搜索)
+   - 专为AI应用优化的搜索API
    - 获取地址: https://app.tavily.com/
 
-2. **自动回退到 DuckDuckGo**
-   - 无需 API 密钥
-   - 当 Tavily 不可用时自动切换
+3. **DuckDuckGo** (免费备选)
+   - 当付费搜索引擎不可用时自动切换
+   - 无需API密钥，开箱即用
+
+### 设置博查AI API 密钥
+
+**方法一：使用脚本设置**
+
+```bash
+# 快速设置脚本
+./set-bocha-key.sh sk-your-bocha-api-key
+```
+
+**方法二：手动设置环境变量**
+
+```bash
+# 临时设置 (当前会话)
+export BOCHA_API_KEY=sk-your-bocha-api-key
+```
+
+**方法三：编辑.env文件**
+
+```bash
+echo "BOCHA_API_KEY=sk-your-bocha-api-key" >> .env
+```
 
 ### 设置 Tavily API 密钥
 
-**方法 1: 使用设置脚本 (推荐)**
-```bash
-# 运行设置脚本
-./set-tavily-key.sh your_tavily_api_key_here
-```
+**使用脚本设置**
 
-**方法 2: 手动设置环境变量**
 ```bash
-# 设置环境变量
-export TAVILY_API_KEY=your_tavily_api_key_here
-
-# 或者添加到 .env 文件
-echo "TAVILY_API_KEY=your_tavily_api_key_here" >> .env
+# 快速设置脚本
+./set-tavily-key.sh tvly-your-tavily-api-key
 ```
 
 ## 📋 使用方法
@@ -146,26 +164,33 @@ docker-compose down
 ### 搜索功能问题
 
 1. **检查搜索引擎状态**
+
    ```bash
-   # 查看后端日志
-   docker-compose logs backend | grep -i search
+   # 查看当前搜索引擎配置
+   grep SEARCH_API .env
    
-   # 或开发模式下查看终端输出
+   # 查看API密钥状态
+   grep BOCHA_API_KEY .env
+   grep TAVILY_API_KEY .env
    ```
 
-2. **Tavily API 密钥问题**
+2. **API 密钥问题**
+
    ```bash
-   # 检查环境变量
+   # 检查博查AI密钥
+   echo $BOCHA_API_KEY
+   
+   # 检查Tavily密钥
    echo $TAVILY_API_KEY
    
-   # 检查 .env 文件
+   # 或检查.env文件
+   grep BOCHA_API_KEY .env
    grep TAVILY_API_KEY .env
    ```
 
 3. **搜索引擎回退机制**
-   - 系统会自动从 Tavily 回退到 DuckDuckGo
-   - 查看日志确认回退状态
-   - 无需手动干预
+   - 系统会自动从博查AI或Tavily回退到 DuckDuckGo
+   - 如果搜索功能异常，请检查网络连接
 
 ### 端口冲突
 
@@ -198,18 +223,20 @@ docker system prune -f
 
 ### 自定义搜索引擎
 
-在 `.env` 文件中设置：
+可以通过环境变量自定义搜索引擎：
 
 ```bash
 # 搜索引擎选择
-SEARCH_API=tavily          # 优先 Tavily，回退 DuckDuckGo
-# SEARCH_API=duckduckgo    # 仅使用 DuckDuckGo
-# SEARCH_API=brave         # 使用 Brave 搜索 (需要 API 密钥)
-# SEARCH_API=arxiv         # 仅搜索学术论文
+SEARCH_API=bocha          # 推荐中文搜索，博查AI
+# SEARCH_API=tavily       # 推荐英文搜索，Tavily
+# SEARCH_API=duckduckgo   # 仅使用 DuckDuckGo
+# SEARCH_API=brave_search # 使用 Brave 搜索 (需要 API 密钥)
+# SEARCH_API=arxiv        # 仅搜索学术论文
 
-# 相关 API 密钥
-TAVILY_API_KEY=your_key
-BRAVE_SEARCH_API_KEY=your_key
+# API 密钥配置
+BOCHA_API_KEY=sk-your-bocha-key
+TAVILY_API_KEY=tvly-your-tavily-key
+BRAVE_SEARCH_API_KEY=your-brave-key
 ```
 
 ### 环境变量优先级

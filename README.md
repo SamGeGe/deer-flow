@@ -170,7 +170,13 @@ Explore more details in the [`web`](./web/) directory.
 
 DeerFlow supports multiple search engines that can be configured in your `.env` file using the `SEARCH_API` variable:
 
-- **Tavily** (default): A specialized search API for AI applications
+- **BochaAI** (博查AI): Chinese-optimized search engine with 1-second response time and high-quality Chinese content
+
+  - Requires `BOCHA_API_KEY` in your `.env` file
+  - Sign up at: https://www.bochaai.com/
+  - Optimized for Chinese language queries and content
+
+- **Tavily** (default for English): A specialized search API for AI applications
 
   - Requires `TAVILY_API_KEY` in your `.env` file
   - Sign up at: https://app.tavily.com/home
@@ -191,8 +197,23 @@ DeerFlow supports multiple search engines that can be configured in your `.env` 
 To configure your preferred search engine, set the `SEARCH_API` variable in your `.env` file:
 
 ```bash
-# Choose one: tavily, duckduckgo, brave_search, arxiv
-SEARCH_API=tavily
+# Choose one: bocha, tavily, duckduckgo, brave_search, arxiv
+SEARCH_API=bocha
+
+# Then set the corresponding API key
+BOCHA_API_KEY=sk-your-bocha-api-key
+```
+
+### Quick Setup Scripts
+
+Use our convenient setup scripts to configure API keys:
+
+```bash
+# Setup BochaAI (recommended for Chinese queries)
+./set-bocha-key.sh sk-your-bocha-api-key
+
+# Setup Tavily (recommended for English queries)
+./set-tavily-key.sh tvly-your-tavily-api-key
 ```
 
 ## Features

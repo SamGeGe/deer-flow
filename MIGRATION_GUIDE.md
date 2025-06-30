@@ -163,8 +163,9 @@ BASIC_MODEL:
 
 ### 2. .env - 环境变量配置
 ```bash
-SEARCH_API=tavily
-TAVILY_API_KEY=your-tavily-key
+SEARCH_API=bocha
+BOCHA_API_KEY=sk-your-bocha-key
+TAVILY_API_KEY=tvly-your-tavily-key
 NEXT_PUBLIC_API_URL=/api  # 生产环境使用相对路径
 ```
 
@@ -253,7 +254,8 @@ netsh advfirewall firewall show rule name="Docker Desktop"
 ### 部署前准备
 - [ ] 确保有有效的 OpenRouter API key
 - [ ] 检查系统要求（内存、存储、网络）
-- [ ] 准备好 Tavily API key（搜索功能，可选）
+- [ ] 准备好博查AI API key（推荐中文搜索，可选）
+- [ ] 准备好 Tavily API key（推荐英文搜索，可选）
 - [ ] 确认端口 4051 可用且未被占用
 
 ### 平台特定准备
@@ -285,28 +287,3 @@ netsh advfirewall firewall show rule name="Docker Desktop"
 - **Linux 服务器生产部署** → 使用 `deploy-linux.sh`
 - **macOS 本地使用** → 使用 `deploy-universal.sh`
 - **Windows 本地使用** → 使用 `deploy-universal.sh`
-- **开发调试** → 使用 `bootstrap.sh --dev`
-
-## 📱 访问地址总结
-
-| 部署方式 | 本地访问 | 外网访问 | 说明 |
-|----------|----------|----------|------|
-| Linux 生产 | http://localhost:4051 | http://server-ip:4051 | 需要防火墙开放端口 |
-| macOS 本地 | http://localhost:4051 | http://mac-ip:4051 | 需要防火墙允许 |
-| Windows 本地 | http://localhost:4051 | http://windows-ip:4051 | 需要防火墙允许 |
-| 开发模式 | http://localhost:9000 | - | 仅本地开发 |
-
----
-
-**📞 获取帮助**
-
-如果遇到问题：
-1. 查看 `docker compose logs -f` 获取详细错误信息
-2. 检查 `docs/FAQ.md` 常见问题解答
-3. 运行 `./check-deployment.sh` 进行环境检查
-4. 在 GitHub Issues 中寻找解决方案
-
-**💡 关键提示**:
-- **Linux 服务器**: 使用 `./deploy-linux.sh` 一键部署
-- **macOS/Windows**: 使用 `./deploy-universal.sh` 一键部署
-- **开发调试**: 使用 `./bootstrap.sh --dev` 开发模式 

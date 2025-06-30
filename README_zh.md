@@ -151,7 +151,13 @@ bootstrap.bat -d
 
 DeerFlow 支持多种搜索引擎，可以在`.env`文件中通过`SEARCH_API`变量进行配置：
 
-- **Tavily**（默认）：专为 AI 应用设计的专业搜索 API
+- **博查AI**（推荐中文搜索）：专为中文优化的搜索引擎，1秒响应，高质量中文内容
+
+  - 需要在`.env`文件中设置`BOCHA_API_KEY`
+  - 注册地址：https://www.bochaai.com/
+  - 专为中文查询和内容优化
+
+- **Tavily**（推荐英文搜索）：专为 AI 应用设计的专业搜索 API
 
   - 需要在`.env`文件中设置`TAVILY_API_KEY`
   - 注册地址：https://app.tavily.com/home
@@ -172,8 +178,23 @@ DeerFlow 支持多种搜索引擎，可以在`.env`文件中通过`SEARCH_API`�
 要配置您首选的搜索引擎，请在`.env`文件中设置`SEARCH_API`变量：
 
 ```bash
-# 选择一个：tavily, duckduckgo, brave_search, arxiv
-SEARCH_API=tavily
+# 选择一个：bocha, tavily, duckduckgo, brave_search, arxiv
+SEARCH_API=bocha
+
+# 然后设置相应的 API 密钥
+BOCHA_API_KEY=sk-your-bocha-api-key
+```
+
+### 快速设置脚本
+
+使用我们便捷的设置脚本来配置 API 密钥：
+
+```bash
+# 设置博查AI（推荐中文查询）
+./set-bocha-key.sh sk-your-bocha-api-key
+
+# 设置 Tavily（推荐英文查询）
+./set-tavily-key.sh tvly-your-tavily-api-key
 ```
 
 ## 特性
