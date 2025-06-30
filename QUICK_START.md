@@ -192,6 +192,8 @@ uv sync --locked
 cd web && pnpm install
 ```
 
+**详细的依赖管理说明请参考：[依赖管理指南](docs/dependencies_guide.md)**
+
 #### 搜索功能不工作
 - 确保已配置博查AI或Tavily API 密钥
 - 博查AI：`./set-bocha-key.sh sk-your-api-key`

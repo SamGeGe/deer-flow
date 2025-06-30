@@ -272,6 +272,7 @@ show_deployment_info() {
     echo "   - 编辑 .env 文件配置环境变量"
     echo "   - 编辑 conf.yaml 文件配置 LLM 模型"
     echo "   - 查看 docs/configuration_guide.md 获取详细配置指南"
+    echo "   - 查看 docs/dependencies_guide.md 获取依赖管理说明"
     echo ""
     echo "🤖 LLM 模型："
     echo "   - 支持: OpenAI GPT-4o, 深度求索, 通义千问, 豆包等"

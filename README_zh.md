@@ -138,9 +138,15 @@ uv run main.py
 bootstrap.bat -d
 ```
 
-打开浏览器并访问[`http://localhost:3000`](http://localhost:3000)探索 Web UI。
+打开浏览器并访问[`http://localhost:4051`](http://localhost:4051)探索 Web UI。
 
 > [!提示]
+> **生产部署推荐使用Docker Compose**：运行 `docker-compose up -d` 后访问 http://localhost:4051
+> 
+> **开发模式端口说明**：
+> - 开发模式（bootstrap脚本）：前端 http://localhost:3000，后端 http://localhost:8000
+> - Docker部署模式：统一访问 http://localhost:4051 (Nginx代理)
+>
 > 只有当您需要将前端和后端 **部署在不同的地址** (例如，前端托管于 Vercel，后端在您自己的服务器) 时, 
 > 才需要在 `web` 目录下的 `.env.local` 文件中设置 `NEXT_PUBLIC_API_URL` 环境变量来指定后端的绝对地址。
 > 对于大多数将前后端部署在同一服务器的场景（包括使用 Docker 或 Ngrok），您 **无需** 进行任何额外配置。
@@ -151,27 +157,27 @@ bootstrap.bat -d
 
 DeerFlow 支持多种搜索引擎，可以在`.env`文件中通过`SEARCH_API`变量进行配置：
 
-- **博查AI**（推荐中文搜索）：专为中文优化的搜索引擎，1秒响应，高质量中文内容
+- **博查AI**：专为中文优化的搜索引擎，1秒响应时间，高质量中文内容，数据合规不出海
 
   - 需要在`.env`文件中设置`BOCHA_API_KEY`
   - 注册地址：https://www.bochaai.com/
   - 专为中文查询和内容优化
 
-- **Tavily**（推荐英文搜索）：专为 AI 应用设计的专业搜索 API
+- **Tavily**：专为AI应用优化的搜索API，适合英文查询
 
   - 需要在`.env`文件中设置`TAVILY_API_KEY`
   - 注册地址：https://app.tavily.com/home
 
-- **DuckDuckGo**：注重隐私的搜索引擎
+- **DuckDuckGo**：注重隐私的搜索引擎，作为免费备选方案
 
   - 无需 API 密钥
 
-- **Brave Search**：具有高级功能的注重隐私的搜索引擎
+- **Brave Search**：具有高级功能的隐私搜索
 
   - 需要在`.env`文件中设置`BRAVE_SEARCH_API_KEY`
   - 注册地址：https://brave.com/search/api/
 
-- **Arxiv**：用于学术研究的科学论文搜索
+- **Arxiv**：学术论文专业搜索
   - 无需 API 密钥
   - 专为科学和学术论文设计
 
@@ -190,12 +196,17 @@ BOCHA_API_KEY=sk-your-bocha-api-key
 使用我们便捷的设置脚本来配置 API 密钥：
 
 ```bash
-# 设置博查AI（推荐中文查询）
+# 设置博查AI（推荐中文查询，默认搜索引擎）
 ./set-bocha-key.sh sk-your-bocha-api-key
 
-# 设置 Tavily（推荐英文查询）
+# 设置 Tavily（可选，英文查询）
 ./set-tavily-key.sh tvly-your-tavily-api-key
 ```
+
+> [!注意]
+> - 博查AI是默认搜索引擎，特别适合中文内容搜索
+> - DuckDuckGo作为免费备选方案，无需API密钥
+> - 如需切换搜索引擎，请在 `.env` 文件中修改 `SEARCH_API` 变量
 
 ## 特性
 
@@ -211,9 +222,13 @@ BOCHA_API_KEY=sk-your-bocha-api-key
 
 - 🔍 **搜索和检索**
 
-  - 通过 Tavily、Brave Search 等进行网络搜索
-  - 使用 Jina 进行爬取
-  - 高级内容提取
+  - **博查AI**：专为中文优化的搜索引擎，1秒响应时间，高质量中文内容，数据合规不出海
+  - **Tavily**：专为AI应用优化的搜索API，适合英文查询
+  - **DuckDuckGo**：注重隐私的搜索引擎，作为免费备选方案
+  - **Brave Search**：具有高级功能的隐私搜索
+  - **Arxiv**：学术论文专业搜索
+  - 使用 Jina 进行高级网页爬取和内容提取
+  - 智能回退机制，确保搜索的可靠性
 
 - 🔗 **MCP 无缝集成**
   - 扩展私有域访问、知识图谱、网页浏览等能力
@@ -375,35 +390,45 @@ DeerFlow 支持 LangSmith 追踪功能，帮助您调试和监控工作流。要
 
 您也可以使用 Docker 运行此项目。
 
-首先，您需要阅读下面的[配置](#配置)部分。确保`.env`和`.conf.yaml`文件已准备就绪。
+首先，您需要阅读下面的[配置](#配置)部分。确保`.env`和`conf.yaml`文件已准备就绪。
 
-其次，构建您自己的 Web 服务器 Docker 镜像：
+### 使用Docker Compose（推荐）
+
+最简单的方式是使用 docker-compose：
 
 ```bash
-docker build -t deer-flow-api .
+# 构建并启动所有服务
+docker-compose up -d
+
+# 查看运行状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
 ```
 
-最后，启动运行 Web 服务器的 Docker 容器：
+启动后，访问 http://localhost:4051 查看 Web UI。
+
+### 手动Docker构建
+
+或者手动构建 Docker 镜像：
 
 ```bash
-# 将deer-flow-api-app替换为您首选的容器名称
+# 构建后端镜像
+docker build -t deer-flow-api .
+
+# 运行容器
 docker run -d -t -p 8000:8000 --env-file .env --name deer-flow-api-app deer-flow-api
 
 # 停止服务器
 docker stop deer-flow-api-app
 ```
 
-### Docker Compose
-
-您也可以使用 docker compose 设置此项目：
-
-```bash
-# 构建docker镜像
-docker compose build
-
-# 启动服务器
-docker compose up
-```
+> [!注意]
+> 使用Docker Compose部署时，前端和后端会自动配置并通过nginx代理提供服务。
 
 ## 文本转语音集成
 
@@ -474,8 +499,14 @@ curl --location 'http://localhost:8000/api/tts' \
    - [查看完整报告](examples/Quantum_Computing_Impact_on_Cryptography.md)
 
 9. **克里斯蒂亚诺·罗纳尔多的表现亮点** - 克里斯蒂亚诺·罗纳尔多表现亮点的分析
+
    - 讨论他的职业成就、国际进球和在各种比赛中的表现
    - [查看完整报告](examples/Cristiano_Ronaldo's_Performance_Highlights.md)
+
+10. **南京汤包文化探索** - 南京传统美食汤包的深度研究
+
+    - 探讨汤包的历史起源、制作工艺、文化意义和现代发展
+    - [查看完整报告](examples/nanjing_tangbao.md)
 
 要运行这些示例或创建您自己的研究报告，您可以使用以下命令：
 
@@ -579,3 +610,13 @@ DeerFlow 建立在开源社区的杰出工作基础之上。我们深深感谢�
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=bytedance/deer-flow&type=Date)](https://star-history.com/#bytedance/deer-flow&Date)
+
+## 📚 文档
+
+- [快速开始指南](QUICK_START.md) - 最快5分钟部署运行
+- [部署模式详解](DEPLOYMENT_MODES.md) - Docker、本地开发、生产部署
+- [依赖管理指南](docs/dependencies_guide.md) - 详细的依赖配置和管理说明
+- [配置指南](docs/configuration_guide.md) - 详细配置说明
+- [FAQ常见问题](docs/FAQ.md) - 故障排除和常见问题解答
+- [项目清理指南](CLEANUP_GUIDE.md) - 减少项目大小的方法
+- [MCP集成指南](docs/mcp_integrations.md) - Model Context Protocol集成
