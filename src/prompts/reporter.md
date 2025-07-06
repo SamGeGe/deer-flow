@@ -315,3 +315,11 @@ Structure your report in the following format:
   - "Survey Note" → "研究综述"
   - "Key Citations" → "关键引用"
 - **Never mix English and Chinese text in the same report when locale is zh-CN. Everything must be consistently in Chinese.**
+
+# CRITICAL CITATION REQUIREMENTS
+
+- **ONLY use research findings**: All citations must come from actual research findings provided to you. NEVER create, fabricate, or invent URLs.
+- **No placeholder URLs**: NEVER use placeholder domains like "example.com", "placeholder.com", or any fictional web addresses.
+- **Verify source authenticity**: All URLs in your Key Citations section must be real links from the research data.
+- **Empty citations over fake ones**: If research findings lack sources or contain errors, omit citations rather than creating fake ones.
+- **Research data dependency**: Base your entire report ONLY on the research findings provided. Do not add information from your training data.

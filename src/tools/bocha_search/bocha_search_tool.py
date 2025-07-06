@@ -121,11 +121,21 @@ class BochaSearchTool(BaseTool):
             # 🚀 修复：检查raw_response是否为None或空
             if raw_response is None:
                 logger.error("博查API响应为None")
-                return [{"error": "API响应为空", "title": "搜索失败", "content": "API返回了空响应"}]
+                return [{
+                    "error": "API响应为空", 
+                    "title": "搜索失败", 
+                    "content": "API返回了空响应，无法提供可靠引用",
+                    "guidance": "无法获取搜索结果，请避免生成虚假引用"
+                }]
             
             if not raw_response:
                 logger.error("博查API响应为空字典")
-                return [{"error": "API响应为空字典", "title": "搜索失败", "content": "API返回了空字典"}]
+                return [{
+                    "error": "API响应为空字典", 
+                    "title": "搜索失败", 
+                    "content": "API返回了空字典，无法提供可靠引用",
+                    "guidance": "无法获取搜索结果，请避免生成虚假引用"
+                }]
             
             # 记录原始响应以便调试
             logger.info(f"博查API原始响应类型: {type(raw_response)}")
@@ -134,7 +144,12 @@ class BochaSearchTool(BaseTool):
             # 🚀 修复：检查是否是错误响应
             if "error" in raw_response:
                 logger.error(f"博查API返回错误: {raw_response['error']}")
-                return [{"error": raw_response["error"], "title": "搜索失败", "content": f"搜索出错: {raw_response['error']}"}]
+                return [{
+                    "error": raw_response["error"], 
+                    "title": "搜索失败", 
+                    "content": f"搜索出错: {raw_response['error']}，无法提供可靠引用",
+                    "guidance": "API错误导致无法获取真实数据，请避免生成虚假引用"
+                }]
             
             # 博查API响应结构：{ "code": 200, "data": { "webPages": {...} } }
             # 首先获取data字段
@@ -145,7 +160,12 @@ class BochaSearchTool(BaseTool):
                 code = raw_response.get("code")
                 if code and code != 200:
                     error_msg = raw_response.get("message", f"API返回错误码: {code}")
-                    return [{"error": error_msg, "title": "搜索失败", "content": f"API错误: {error_msg}"}]
+                    return [{
+                        "error": error_msg, 
+                        "title": "搜索失败", 
+                        "content": f"API错误: {error_msg}，无法提供可靠引用",
+                        "guidance": "API状态异常，请避免生成虚假引用"
+                    }]
                 return []
             
             # 处理网页搜索结果
@@ -153,8 +173,14 @@ class BochaSearchTool(BaseTool):
             if web_pages_data is None:
                 logger.warning("webPages字段为None")
                 web_pages = []
+            elif not isinstance(web_pages_data, dict):
+                logger.warning(f"webPages字段类型错误: {type(web_pages_data)}, 期望dict")
+                web_pages = []
             else:
                 web_pages = web_pages_data.get("value", [])
+                if not isinstance(web_pages, list):
+                    logger.warning(f"webPages.value类型错误: {type(web_pages)}, 期望list")
+                    web_pages = []
             
             logger.info(f"找到 {len(web_pages)} 个网页搜索结果")
             
@@ -180,8 +206,14 @@ class BochaSearchTool(BaseTool):
                 if images_data is None:
                     logger.debug("images字段为None")
                     images = []
+                elif not isinstance(images_data, dict):
+                    logger.warning(f"images字段类型错误: {type(images_data)}, 期望dict")
+                    images = []
                 else:
                     images = images_data.get("value", [])
+                    if not isinstance(images, list):
+                        logger.warning(f"images.value类型错误: {type(images)}, 期望list")
+                        images = []
                 
                 logger.info(f"找到 {len(images)} 个图片结果")
                 
@@ -205,7 +237,12 @@ class BochaSearchTool(BaseTool):
             
         except Exception as e:
             logger.error(f"博查搜索结果格式化失败: {e}")
-            return []
+            return [{
+                "error": f"结果格式化失败: {e}", 
+                "title": "数据处理失败", 
+                "content": "搜索结果无法正确解析，无法提供可靠引用",
+                "guidance": "数据格式化错误，请避免生成虚假引用"
+            }]
     
     def _run(
         self,
@@ -219,13 +256,21 @@ class BochaSearchTool(BaseTool):
             
             formatted_results = self._format_results(raw_response)
             if not formatted_results:
-                return json.dumps([{"error": "未找到搜索结果"}], ensure_ascii=False)
+                return json.dumps([{
+                    "error": "未找到搜索结果", 
+                    "message": "搜索未返回任何结果，无法提供引用来源",
+                    "guidance": "请尝试不同的搜索关键词或承认数据不足"
+                }], ensure_ascii=False)
             
             return json.dumps(formatted_results, ensure_ascii=False)
             
         except Exception as e:
             logger.error(f"博查搜索执行失败: {e}")
-            return json.dumps([{"error": f"搜索失败: {str(e)}"}], ensure_ascii=False)
+            return json.dumps([{
+                "error": f"搜索失败: {str(e)}", 
+                "message": "搜索工具遇到错误，无法获取可靠数据",
+                "guidance": "由于搜索失败，无法提供真实引用，请在报告中说明数据获取困难"
+            }], ensure_ascii=False)
     
     async def _arun(
         self,
@@ -242,11 +287,19 @@ class BochaSearchTool(BaseTool):
             formatted_results = self._format_results(raw_response)
             if not formatted_results:
                 logger.warning("格式化后的结果为空")
-                return json.dumps([{"error": "未找到搜索结果"}], ensure_ascii=False)
+                return json.dumps([{
+                    "error": "未找到搜索结果", 
+                    "message": "搜索未返回任何结果，无法提供引用来源",
+                    "guidance": "请尝试不同的搜索关键词或承认数据不足"
+                }], ensure_ascii=False)
             
             logger.info(f"博查异步搜索成功，返回 {len(formatted_results)} 个结果")
             return json.dumps(formatted_results, ensure_ascii=False)
             
         except Exception as e:
             logger.error(f"博查异步搜索执行失败: {e}")
-            return json.dumps([{"error": f"搜索失败: {str(e)}"}], ensure_ascii=False) 
+            return json.dumps([{
+                "error": f"搜索失败: {str(e)}", 
+                "message": "搜索工具遇到错误，无法获取可靠数据",
+                "guidance": "由于搜索失败，无法提供真实引用，请在报告中说明数据获取困难"
+            }], ensure_ascii=False) 

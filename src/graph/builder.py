@@ -38,6 +38,14 @@ def continue_to_running_research_team(state: State):
                 
                 # 🚀 智能路由策略：优先使用researcher处理大多数任务
                 
+                # 🎯 最终报告生成任务 → reporter（优先检测，避免被其他规则误判）
+                report_generation_keywords = ['报告摘要', '生成报告', '撰写报告', '最终报告', 'report summary', 'generate report', 'final report']
+                is_report_generation = any(keyword in step_title or keyword in step_description for keyword in report_generation_keywords)
+                
+                if is_report_generation:
+                    logger.info(f"🔄 Router: Report generation task detected, going to reporter for: '{step.title}'")
+                    return "reporter"
+                
                 # 总结类任务 → researcher
                 summary_keywords = ['总结', '汇总', '综合', '概述', '整理', '呈现', 'summary', 'summarize', 'present', 'conclude']
                 is_summary_task = any(keyword in step_title or keyword in step_description for keyword in summary_keywords)

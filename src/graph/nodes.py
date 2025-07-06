@@ -821,29 +821,48 @@ async def reporter_node(state: State, config: RunnableConfig):
     logger.info("为报告员添加了 /no_think，使用低推理模式")
     
     try:
-        # 🚀 添加超时机制 - 为低推理模式设置5分钟超时（更合理的时间）
+        # 🚀 添加超时机制 - 为低推理模式设置10分钟超时（应对复杂数据处理）
         import asyncio
         
-        logger.info("开始报告生成，设置5分钟超时保护")
+        logger.info("开始报告生成，设置10分钟超时保护")
         logger.info(f"正在处理 {len(observations)} 项研究数据...")
         
-        response = await asyncio.wait_for(
-            llm.ainvoke(invoke_messages),
-            timeout=300.0  # 5分钟超时，适应低推理模式的快速生成
+        # 🚀 实现流式响应 - 实时推送报告内容
+        full_response = ""
+        
+        async def stream_with_timeout():
+            """带超时的流式处理函数"""
+            nonlocal full_response
+            
+            # 使用流式调用替代一次性调用
+            async for chunk in llm.astream(invoke_messages):
+                if chunk.content:
+                    full_response += chunk.content
+                    
+                    # 通过状态更新机制实时推送内容
+                    # 注意：这里我们无法直接yield，但可以通过日志记录进度
+                    if len(full_response) % 100 == 0:  # 每100字符记录一次进度
+                        logger.info(f"报告生成进度: {len(full_response)} 字符")
+            
+            return full_response
+        
+        # 执行流式处理并应用超时
+        await asyncio.wait_for(
+            stream_with_timeout(),
+            timeout=600.0  # 10分钟超时，适应复杂数据处理需求
         )
         
-        full_response = response.content if hasattr(response, 'content') else str(response)
         logger.info(f"报告生成成功完成！")
         logger.info(f"报告总字数: {len(full_response)} 字符")
         logger.info(f"基于 {len(observations)} 项研究发现生成最终报告")
         
     except asyncio.TimeoutError:
-        logger.error("报告生成在5分钟后超时，生成基础报告")
+        logger.error("报告生成在10分钟后超时，生成基础报告")
         full_response = f"""# 报告生成超时
 
 ## 执行摘要
 
-由于网络或模型响应延迟，完整报告生成超时。基于已收集的研究数据，提供以下基础分析：
+由于网络或模型响应延迟，完整报告生成在10分钟后超时。基于已收集的研究数据，提供以下基础分析：
 
 ## 研究发现
 
