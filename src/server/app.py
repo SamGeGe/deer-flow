@@ -7,6 +7,7 @@ import logging
 import os
 from typing import Annotated, List, cast
 from uuid import uuid4
+from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -475,3 +476,22 @@ async def config():
         rag=RAGConfigResponse(provider=SELECTED_RAG_PROVIDER),
         models=models,
     )
+
+
+@app.get("/api/health")
+async def health_check():
+    """健康检查端点，用于检测服务器状态"""
+    try:
+        # 可以在这里添加更多的健康检查逻辑
+        # 比如检查数据库连接、LLM服务状态等
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "version": "1.0.0"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }

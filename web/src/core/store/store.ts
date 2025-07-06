@@ -85,6 +85,26 @@ export async function sendMessage(
   } = {},
   options: { abortSignal?: AbortSignal } = {},
 ) {
+  // 防止重复请求：如果正在响应中且没有中断反馈，则忽略新请求
+  const currentState = useStore.getState();
+  if (currentState.responding && !interruptFeedback) {
+    console.warn('请求被忽略：系统正在响应中，请等待当前请求完成');
+    return;
+  }
+
+  // 检查是否是重复的用户消息内容
+  if (content != null && !interruptFeedback) {
+    const lastMessageId = currentState.messageIds.length > 0 
+      ? currentState.messageIds[currentState.messageIds.length - 1]
+      : null;
+    const lastMessage = lastMessageId ? currentState.messages.get(lastMessageId) : null;
+    
+    if (lastMessage?.role === "user" && lastMessage?.content === content.trim()) {
+      console.warn('请求被忽略：检测到重复的消息内容');
+      return;
+    }
+  }
+
   if (content != null) {
     appendMessage({
       id: nanoid(),

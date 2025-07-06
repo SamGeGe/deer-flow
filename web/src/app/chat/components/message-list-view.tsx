@@ -144,14 +144,23 @@ function MessageListItem({
     return researchIds.includes(messageId);
   }, [researchIds, messageId]);
   if (message) {
-    if (
+    // 只允许用户消息、特定的agent消息和研究开始消息显示在左边主聊天区域
+    // 研究过程中的消息（researcher, reporter, coder等）应该只在右边的研究区域显示
+    const shouldShowInMainChat = 
       message.role === "user" ||
-      message.role === "assistant" ||
       message.agent === "coordinator" ||
       message.agent === "planner" ||
       message.agent === "podcast" ||
-      startOfResearch
-    ) {
+      startOfResearch ||
+      // 只有非研究相关的assistant消息才显示在主聊天区域
+      (message.role === "assistant" && 
+       !message.agent && 
+       !message.content?.includes('参考文献') &&
+       !message.content?.includes('## 参考文献') &&
+       !message.content?.includes('研究发现') &&
+       !message.content?.includes('bochaai.com'));
+
+    if (shouldShowInMainChat) {
       let content: React.ReactNode;
       if (message.agent === "planner") {
         content = (

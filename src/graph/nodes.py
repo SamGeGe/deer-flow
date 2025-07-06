@@ -467,6 +467,39 @@ async def _execute_agent_step(
 
         logger.info(f"Executing step (serial): {current_step.title}, agent: {agent_name}")
 
+    # 🚀 任务去重检查：检查是否已有相同任务的执行结果
+    if current_step and hasattr(current_step, 'execution_res') and current_step.execution_res:
+        logger.info(f"Step '{current_step.title}' already completed, skipping execution")
+        return Command(
+            update={
+                "messages": [
+                    HumanMessage(
+                        content=f"任务 '{current_step.title}' 已完成，跳过重复执行。",
+                        name=agent_name,
+                    )
+                ],
+            },
+            goto="research_team",
+        )
+
+    # 检查观察记录中是否有相同任务的结果
+    task_signature = f"{current_step.title}_{agent_name}".lower()
+    for obs in observations:
+        if isinstance(obs, str) and task_signature in obs.lower():
+            logger.info(f"Similar task found in observations, marking step as completed")
+            current_step.execution_res = f"Task completed (found in previous observations): {obs[:200]}..."
+            return Command(
+                update={
+                    "messages": [
+                        HumanMessage(
+                            content=f"任务 '{current_step.title}' 在之前的观察中已找到结果，跳过重复执行。",
+                            name=agent_name,
+                        )
+                    ],
+                },
+                goto="research_team",
+            )
+
     # Get completed steps for context (only if we have access to current_plan)
     completed_steps = []
     if current_plan and hasattr(current_plan, 'steps'):
