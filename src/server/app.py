@@ -388,7 +388,7 @@ async def enhance_prompt(request: EnhancePromptRequest):
                 report_style = style_mapping.get(
                     request.report_style, ReportStyle.ACADEMIC
                 )
-            except Exception:
+            except BaseException:
                 # If invalid style, default to ACADEMIC
                 report_style = ReportStyle.ACADEMIC
         else:

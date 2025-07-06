@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Union
 import os
 
 from langchain_openai import ChatOpenAI
@@ -47,7 +47,7 @@ def _get_env_llm_conf(llm_type: str) -> Dict[str, Any]:
 
 def _create_llm_use_conf(
     llm_type: LLMType, conf: Dict[str, Any]
-) -> ChatOpenAI | ChatDeepSeek:
+) -> Union[ChatOpenAI, ChatDeepSeek]:
     """Create LLM instance using configuration."""
     llm_type_config_keys = _get_llm_type_config_keys()
     config_key = llm_type_config_keys.get(llm_type)
@@ -106,7 +106,7 @@ def get_llm_by_type(
 def get_llm_with_reasoning_effort(
     llm_type: LLMType = "basic", 
     reasoning_effort: str = None
-) -> ChatOpenAI | ChatDeepSeek:
+) -> Union[ChatOpenAI, ChatDeepSeek]:
     """
     Get LLM instance with specific reasoning effort configuration.
     

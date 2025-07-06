@@ -9,6 +9,8 @@ import {
   ChevronDown,
   ChevronRight,
   Lightbulb,
+  Pencil as PencilIcon,
+  Check as CheckIcon,
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -47,7 +49,8 @@ import {
   useResearchMessage,
   useStore,
 } from "~/core/store";
-import { parseJSON } from "~/core/utils";
+import { parseJSON } from "~/core/utils/json";
+import { adaptBackendDataToFrontend } from "~/core/utils/json";
 import { cn } from "~/lib/utils";
 
 export function MessageListView({
@@ -143,6 +146,7 @@ function MessageListItem({
   if (message) {
     if (
       message.role === "user" ||
+      message.role === "assistant" ||
       message.agent === "coordinator" ||
       message.agent === "planner" ||
       message.agent === "podcast" ||
@@ -443,57 +447,64 @@ function PlanCard({
   const plan = useMemo<{
     title?: string;
     thought?: string;
-    steps?: { title?: string; description?: string }[];
+    steps?: ({ title?: string; description?: string } & Record<string, any>)[];
+    _raw?: any;
   }>(() => {
-    // 改进：实时解析JSON，不等待流式传输完成
     if (!message.content) {
       return {};
     }
     
-    try {
-      // 使用改进的JSON解析器
-      const result = parseJSON(message.content, {});
+    // 🚀 重要修复：防止研究内容和引用显示在计划卡中
+    // 检查内容是否包含研究数据的特征（引用、URL、参考文献等）
+    const contentLower = message.content.toLowerCase();
+    const isResearchContent = 
+      contentLower.includes('参考文献') ||
+      contentLower.includes('引用') ||
+      contentLower.includes('http://') ||
+      contentLower.includes('https://') ||
+      contentLower.includes('研究发现') ||
+      contentLower.includes('研究结果') ||
+      contentLower.includes('搜索结果') ||
+      contentLower.includes('bochaai.com') ||
+      contentLower.includes('根据搜索') ||
+      contentLower.includes('## 参考文献') ||
+      contentLower.includes('### 参考文献');
       
-      // 添加详细的调试信息
-      if (message.agent === 'planner' || message.agent === 'coordinator') {
-        const typedResult = result as any; // 临时类型断言用于调试
-        console.debug('计划解析详情:', {
-          agent: message.agent,
-          messageId: message.id,
-          isStreaming: message.isStreaming,
-          contentLength: message.content?.length || 0,
-          contentPreview: message.content?.substring(0, 200) + '...',
-          parsedKeys: result ? Object.keys(result) : [],
-          hasTitle: !!typedResult?.title,
-          hasThought: !!typedResult?.thought,
-          hasSteps: !!typedResult?.steps,
-          stepsCount: Array.isArray(typedResult?.steps) ? typedResult.steps.length : 0,
-          result
-        });
-        
-        // 验证解析结果的质量
-        if (result && typeof result === 'object') {
-          if (!typedResult.title && !typedResult.thought && !typedResult.steps) {
-            console.warn('解析结果为空对象，可能存在JSON格式问题:', {
-              agent: message.agent,
-              rawContent: message.content
-            });
-          }
-        }
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('计划解析失败:', {
-        agent: message.agent,
-        messageId: message.id,
-        error,
-        contentLength: message.content?.length || 0,
-        contentSample: message.content?.substring(0, 300) + '...'
-      });
+    if (isResearchContent) {
+      // 如果包含研究内容特征，不显示在计划卡中
+      console.debug('Detected research content in planner message, skipping plan display');
       return {};
     }
-  }, [message.content, message.agent, message.id]); // 添加messageId依赖
+    
+    // 🔧 修复：只在流式传输完成时解析JSON，或者检查JSON是否完整
+    const shouldAttemptParse = !message.isStreaming || isCompleteJSON(message.content);
+    
+    if (!shouldAttemptParse) {
+      // 如果还在流式传输中且JSON不完整，返回空对象避免显示截断内容
+      return {};
+    }
+    
+    try {
+      // 优先用parseJSON解析
+      const result = parseJSON(message.content, {});
+      // 结构化适配
+      const adapted = adaptBackendDataToFrontend(result);
+      
+      // 🚀 额外验证：确保这是真正的计划结构
+      const hasValidPlanStructure = adapted.title || adapted.thought || (adapted.steps && adapted.steps.length > 0);
+      if (!hasValidPlanStructure) {
+        console.debug('No valid plan structure detected, skipping plan display');
+        return {};
+      }
+      
+      // 保留原始内容
+      return { ...adapted, _raw: result };
+    } catch (error) {
+      // 解析失败兜底
+      console.debug('Failed to parse plan content:', error);
+      return {};
+    }
+  }, [message.content, message.agent, message.id, message.isStreaming]);
 
   // 编辑状态管理
   const [isEditing, setIsEditing] = useState(false);
@@ -553,8 +564,9 @@ function PlanCard({
   // 判断是否正在思考：有推理内容但还没有主要内容
   const isThinking = Boolean(reasoningContent && !hasMainContent);
 
-  // 改进：即使在流式传输期间也显示已解析的计划内容
+  // 🔧 修复：改进计划显示逻辑，在流式传输期间显示加载状态
   const shouldShowPlan = hasMainContent && (plan.title || plan.thought || plan.steps);
+  const shouldShowLoadingPlan = hasMainContent && message.isStreaming && !shouldShowPlan;
   
   const handleAccept = useCallback(async () => {
     if (onSendMessage) {
@@ -576,6 +588,29 @@ function PlanCard({
           hasMainContent={hasMainContent}
         />
       )}
+      {shouldShowLoadingPlan && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold">正在生成研究计划...</span>
+                  <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-muted-foreground text-sm">
+                正在分析您的需求并制定详细的研究计划，请稍候...
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
       {shouldShowPlan && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -594,11 +629,7 @@ function PlanCard({
                   />
                 ) : (
                   <Markdown animated={message.isStreaming}>
-                    {`### ${
-                      plan.title && plan.title.trim() !== ""
-                        ? plan.title
-                        : "深度研究"
-                    }`}
+                    {`### ${plan.title && plan.title.trim() !== "" ? plan.title : "深度研究"}`}
                   </Markdown>
                 )}
               </CardTitle>
@@ -643,16 +674,24 @@ function PlanCard({
                       ))
                     ) : (
                       plan.steps?.map((step, i) => (
-                        <li key={`step-${i}`}>
+                        <li key={`step-${i}`} className="mb-2">
                           <h3 className="mb text-lg font-medium">
                             <Markdown animated={message.isStreaming}>
                               {step.title}
                             </Markdown>
                           </h3>
-                          <div className="text-muted-foreground text-sm">
+                          <div className="text-muted-foreground text-sm mb-1">
                             <Markdown animated={message.isStreaming}>
                               {step.description}
                             </Markdown>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {step.step_type && (
+                              <span className="bg-blue-100 text-blue-700 rounded px-2 py-0.5 text-xs">类型: {step.step_type}</span>
+                            )}
+                            {typeof step.need_search === 'boolean' && (
+                              <span className="bg-green-100 text-green-700 rounded px-2 py-0.5 text-xs">{step.need_search ? '需检索' : '无需检索'}</span>
+                            )}
                           </div>
                         </li>
                       ))
@@ -665,69 +704,46 @@ function PlanCard({
               {!message.isStreaming && (
                 <motion.div
                   className="flex gap-2"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.3 }}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
                 >
-                  {isEditing ? (
-                    // 编辑模式按钮
+                  {!isEditing ? (
                     <>
                       <Button
                         variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditing(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                        编辑计划
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleAccept}
+                        className="flex items-center gap-2"
+                      >
+                        <CheckIcon className="w-4 h-4" />
+                        开始研究
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={handleCancelEdit}
                       >
                         取消
                       </Button>
                       <Button
-                        variant="default"
+                        size="sm"
                         onClick={handleSaveEdit}
                       >
-                        保存计划
+                        保存
                       </Button>
                     </>
-                  ) : (
-                    // 非编辑模式按钮
-                    interruptMessage?.options?.length ? (
-                      interruptMessage.options.map((option) => (
-                        <Button
-                          key={option.value}
-                          variant={
-                            option.value === "accepted" ? "default" : "outline"
-                          }
-                          disabled={!waitForFeedback}
-                          onClick={() => {
-                            if (option.value === "accepted") {
-                              void handleAccept();
-                            } else if (option.value === "edit_plan") {
-                              // 进入编辑模式
-                              setIsEditing(true);
-                            } else {
-                              onFeedback?.({
-                                option,
-                              });
-                            }
-                          }}
-                        >
-                          {option.text}
-                        </Button>
-                      ))
-                    ) : (
-                      // 默认按钮（如果没有interrupt选项）
-                      <>
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsEditing(true)}
-                        >
-                          编辑计划
-                        </Button>
-                        <Button
-                          variant="default"
-                          onClick={handleAccept}
-                        >
-                          开始研究
-                        </Button>
-                      </>
-                    )
                   )}
                 </motion.div>
               )}
@@ -737,6 +753,64 @@ function PlanCard({
       )}
     </div>
   );
+}
+
+// 🔧 新增：检查JSON是否完整的辅助函数
+function isCompleteJSON(content: string): boolean {
+  if (!content || typeof content !== 'string') {
+    return false;
+  }
+  
+  const trimmed = content.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return false;
+  }
+  
+  try {
+    JSON.parse(trimmed);
+    return true;
+  } catch (error) {
+    // 检查是否是常见的流式传输不完整情况
+    // 如果以逗号结尾，可能是不完整的
+    if (trimmed.endsWith(',') || trimmed.endsWith('"')) {
+      return false;
+    }
+    
+    // 检查括号是否匹配
+    let braceCount = 0;
+    let bracketCount = 0;
+    let inString = false;
+    let escaped = false;
+    
+    for (let i = 0; i < trimmed.length; i++) {
+      const char = trimmed[i];
+      
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+      
+      if (!inString) {
+        if (char === '{') braceCount++;
+        else if (char === '}') braceCount--;
+        else if (char === '[') bracketCount++;
+        else if (char === ']') bracketCount--;
+      }
+    }
+    
+    // 如果括号不匹配，可能是不完整的JSON
+    return braceCount === 0 && bracketCount === 0;
+  }
 }
 
 function PodcastCard({

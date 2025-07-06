@@ -3,11 +3,11 @@
 
 import logging
 
-from langchain.schema import HumanMessage, SystemMessage
+from langchain.schema import HumanMessage
 
 from src.config.agents import AGENT_LLM_MAP
-from src.llms.llm import get_llm_by_type
-from src.prompts.template import env, apply_prompt_template
+from src.llms.llm import get_llm_with_reasoning_effort, add_no_think_if_needed
+from src.prompts.template import apply_prompt_template
 from src.prompt_enhancer.graph.state import PromptEnhancerState
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ def prompt_enhancer_node(state: PromptEnhancerState):
     """Node that enhances user prompts using AI analysis."""
     logger.info("Enhancing user prompt...")
 
-    model = get_llm_by_type(AGENT_LLM_MAP["prompt_enhancer"])
+    model = get_llm_with_reasoning_effort(AGENT_LLM_MAP["prompt_enhancer"], "low")
 
     try:
 
@@ -37,6 +37,9 @@ def prompt_enhancer_node(state: PromptEnhancerState):
                 "report_style": state.get("report_style"),
             },
         )
+
+        messages = add_no_think_if_needed(messages, model, "low")
+        logger.info("为prompt_enhancer_node添加了 /no_think")
 
         # Get the response from the model
         response = model.invoke(messages)

@@ -4,16 +4,15 @@
 import json
 import logging
 import os
-from typing import Annotated, Literal, Union, Optional
+from typing import Annotated, Literal
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
-from langgraph.types import Command, interrupt, Send
+from langgraph.types import Command, interrupt
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from src.agents import create_agent
-from src.tools.search import LoggedTavilySearch
 from src.tools import (
     crawl_tool,
     get_web_search_tool,
@@ -23,14 +22,12 @@ from src.tools import (
 
 from src.config.agents import AGENT_LLM_MAP
 from src.config.configuration import Configuration
-from src.config import load_yaml_config
-from src.llms.llm import get_llm_by_type, _get_config_file_path, get_llm_with_reasoning_effort, add_no_think_if_needed
+from src.llms.llm import get_llm_with_reasoning_effort, add_no_think_if_needed
 from src.prompts.planner_model import Plan, StepType
-from src.prompts.template import apply_prompt_template, get_prompt_template
+from src.prompts.template import apply_prompt_template
 from src.utils.json_utils import repair_json_output
 
 from .types import State
-from ..config import SELECTED_SEARCH_ENGINE, SearchEngine
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +46,7 @@ def handoff_to_planner(
 def background_investigation_node(state: State, config: RunnableConfig):
     """Background investigation node that gathers information about the query before planning."""
     logger.info("后台调查节点正在运行")
-    configurable = Configuration.from_runnable_config(config)
+    Configuration.from_runnable_config(config)
     query = state.get("research_topic", "")
     
     # Simple and safe implementation that always succeeds
@@ -543,16 +540,32 @@ async def _execute_agent_step(
     
     execution_result = ""
     try:
-        # 🚀 添加超时机制 - 设置180秒（3分钟）超时，提高成功率
+        # 🚀 智能超时机制 - 根据任务类型设置不同超时时间
         import asyncio
         
-        logger.info(f"Starting agent {agent_name} execution with 180s timeout")
+        # 智能判断任务复杂度并设置超时时间
+        task_title = current_step.title.lower() if current_step else ""
+        task_desc = current_step.description.lower() if current_step else ""
+        
+        # 整理/总结类任务需要更多时间处理数据
+        is_organize_task = any(keyword in task_title or keyword in task_desc 
+                               for keyword in ['整理', '呈现', '总结', '汇总', '分析', 'organize', 'present', 'summarize', 'analyze'])
+        
+        # 设置动态超时时间
+        if is_organize_task:
+            timeout_seconds = 300.0  # 5分钟，用于复杂的数据整理任务
+            timeout_desc = "5分钟（数据整理任务）"
+        else:
+            timeout_seconds = 180.0  # 3分钟，用于搜索任务
+            timeout_desc = "3分钟（搜索任务）"
+        
+        logger.info(f"Starting agent {agent_name} execution with {timeout_desc} timeout")
         result = await asyncio.wait_for(
             agent.ainvoke(
                 input=agent_input, 
                 config={"recursion_limit": recursion_limit}
             ),
-            timeout=180.0  # 3分钟超时，减少研究任务超时失败
+            timeout=timeout_seconds
         )
         
         # Process the result
@@ -572,8 +585,9 @@ async def _execute_agent_step(
         logger.info(f"Step '{current_step.title}' execution completed by {agent_name}")
         
     except asyncio.TimeoutError:
-        logger.error(f"Agent {agent_name} execution timed out after 180 seconds")
-        execution_result = f"Error: Agent {agent_name} timed out after 3 minutes. Task '{current_step.title}' was not completed."
+        timeout_minutes = int(timeout_seconds // 60)
+        logger.error(f"Agent {agent_name} execution timed out after {timeout_seconds} seconds")
+        execution_result = f"Error: Agent {agent_name} timed out after {timeout_minutes} minutes. Task '{current_step.title}' was not completed."
         logger.info(f"Step '{current_step.title}' failed due to timeout, marked as completed with error")
     except Exception as e:
         logger.error(f"Error executing agent {agent_name}: {str(e)}", exc_info=True)
@@ -732,26 +746,33 @@ async def reporter_node(state: State, config: RunnableConfig):
                 "5. **讨论分析** - 解释和影响\n"
                 "6. **结论** - 总结和未来方向\n\n"
                 "## 引用要求\n"
-                "- 对所有来源使用编号引用 [1], [2] 等\n"
-                "- 在文末包含参考文献部分，包含完整网址\n"
-                "- 格式：[1] 标题, 网址, (访问日期)\n"
-                "- 在相关陈述后立即引用来源\n\n"
+                "- 请勿在正文中使用内联引用\n"
+                "- 在文末单独设置参考文献部分，使用链接引用格式\n"
+                "- 格式：- [资料标题](网址)\n"
+                "- 每个引用之间留空行，提高可读性\n\n"
                 "## 视觉元素\n"
                 "- 使用markdown表格进行数据对比\n"
                 "- 使用要点列表展示关键见解\n"
                 "- 包含相关统计数据和图表\n"
                 "- 使用标题清晰组织内容\n\n"
                 f"## 可用研究数据\n"
-                f"您可以使用 {len(observations)} 项研究观察结果来支持您的分析。"
+                f"您可以使用 {len(observations)} 项研究观察结果来支持您的分析。\n\n"
+                f"## 研究数据使用指导\n"
+                f"- 完整整合所有研究发现，不要遗漏重要信息\n"
+                f"- 保留研究数据中的所有引用和参考文献\n"
+                f"- 研究数据中的引用格式已经标准化，请直接使用\n"
+                f"- 确保报告的专业性和内容的完整性\n"
+                f"- 如果研究数据包含图表或数据表，请在报告中复现"
             )
         )
     )
 
     # Add observations to the conversation
-    for obs in observations:
-        if hasattr(obs, "observation"):
+    # 🚀 修复：正确处理observations（字符串列表）
+    for i, obs in enumerate(observations):
+        if obs and str(obs).strip():  # 确保观察结果不为空
             invoke_messages.append(
-                HumanMessage(content=f"**Research Data**: {obs.observation}")
+                HumanMessage(content=f"**Research Data {i+1}**: {str(obs)}")
             )
 
     # Report generation: Use low reasoning mode for faster and more stable generation

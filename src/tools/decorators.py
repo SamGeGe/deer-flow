@@ -61,6 +61,15 @@ class LoggedToolMixin:
         )
         return result
 
+    async def _arun(self, *args: Any, **kwargs: Any) -> Any:
+        """Override _arun method to add logging."""
+        self._log_operation("_arun", *args, **kwargs)
+        result = await super()._arun(*args, **kwargs)
+        logger.debug(
+            f"Tool {self.__class__.__name__.replace('Logged', '')} async returned: {result}"
+        )
+        return result
+
 
 def create_logged_tool(base_tool_class: Type[T]) -> Type[T]:
     """

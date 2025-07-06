@@ -5,6 +5,7 @@ import os
 import requests
 from src.rag.retriever import Chunk, Document, Resource, Retriever
 from urllib.parse import urlparse
+from typing import Optional
 
 
 class RAGFlowProvider(Retriever):
@@ -86,7 +87,7 @@ class RAGFlowProvider(Retriever):
 
         return list(docs.values())
 
-    def list_resources(self, query: str | None = None) -> list[Resource]:
+    def list_resources(self, query: Optional[str] = None) -> list[Resource]:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",

@@ -62,7 +62,7 @@ class RetrieverTool(BaseTool):
             return "Error occurred while searching local knowledge base."
 
 
-def get_retriever_tool(resources: List[Resource]) -> RetrieverTool | None:
+def get_retriever_tool(resources: List[Resource]) -> Optional[RetrieverTool]:
     if not resources:
         return None
     logger.info(f"create retriever tool: {SELECTED_RAG_PROVIDER}")

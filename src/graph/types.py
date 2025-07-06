@@ -1,7 +1,7 @@
 # Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
-from typing import Annotated
+from typing import Annotated, Optional
 from operator import add
 from langgraph.graph import MessagesState
 
@@ -18,7 +18,7 @@ class State(MessagesState):
     observations: Annotated[list[str], add] = []
     resources: list[Resource] = []
     plan_iterations: int = 0
-    current_plan: Plan | str = None
+    current_plan: Optional[str] = None
     current_step: Step = None  # For parallel execution
     final_report: str = ""
     auto_accepted_plan: bool = False

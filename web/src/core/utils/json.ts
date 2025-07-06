@@ -96,7 +96,7 @@ export function parseJSON<T>(json: string | null | undefined, fallback: T): T {
 /**
  * 数据适配层：将后台JSON格式转换为前端期望格式
  */
-function adaptBackendDataToFrontend(rawData: any): any {
+export function adaptBackendDataToFrontend(rawData: any): any {
   if (!rawData || typeof rawData !== 'object') {
     return rawData;
   }
@@ -104,15 +104,18 @@ function adaptBackendDataToFrontend(rawData: any): any {
   // 如果是规划员数据，进行格式适配
   if (rawData.locale || rawData.has_enough_context !== undefined || 
       (rawData.steps && Array.isArray(rawData.steps))) {
-    
-    // 适配规划员数据格式
+    // 适配规划员数据格式，保留steps的所有自定义字段
     const adapted: any = {
       title: rawData.title || "研究计划",
       thought: rawData.thought || "",
-      steps: rawData.steps ? rawData.steps.map((step: any, index: number) => ({
-        title: step.title || step.description || `步骤 ${index + 1}`,
-        description: step.description || step.title || "研究任务"
-      })) : []
+      steps: rawData.steps ? rawData.steps.map((step: any, index: number) => {
+        // 保留所有原始字段
+        return {
+          title: step.title || step.description || `步骤 ${index + 1}`,
+          description: step.description || step.title || "研究任务",
+          ...step // 合并所有自定义字段
+        };
+      }) : []
     };
 
     // 保留原始数据作为备用（动态属性）

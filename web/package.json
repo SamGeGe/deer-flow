@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "check": "next lint && tsc --noEmit",
-    "dev": "dotenv -e ../.env -- next dev --turbo -p 9000",
+    "dev": "next dev --turbo -p 9000",
     "scan": "next dev & npx react-scan@latest localhost:9000",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",

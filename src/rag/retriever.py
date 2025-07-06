@@ -3,6 +3,7 @@
 
 import abc
 from pydantic import BaseModel, Field
+from typing import Optional
 
 
 class Chunk:
@@ -20,15 +21,15 @@ class Document:
     """
 
     id: str
-    url: str | None = None
-    title: str | None = None
+    url: Optional[str] = None
+    title: Optional[str] = None
     chunks: list[Chunk] = []
 
     def __init__(
         self,
         id: str,
-        url: str | None = None,
-        title: str | None = None,
+        url: Optional[str] = None,
+        title: Optional[str] = None,
         chunks: list[Chunk] = [],
     ):
         self.id = id
@@ -53,7 +54,7 @@ class Resource(BaseModel):
 
     uri: str = Field(..., description="资源的URI")
     title: str = Field(..., description="资源的标题")
-    description: str | None = Field("", description="资源的描述")
+    description: Optional[str] = Field("", description="资源的描述")
 
 
 class Retriever(abc.ABC):
@@ -62,11 +63,10 @@ class Retriever(abc.ABC):
     """
 
     @abc.abstractmethod
-    def list_resources(self, query: str | None = None) -> list[Resource]:
+    def list_resources(self, query: Optional[str] = None) -> list[Resource]:
         """
         List resources from the rag provider.
         """
-        pass
 
     @abc.abstractmethod
     def query_relevant_documents(
@@ -75,4 +75,3 @@ class Retriever(abc.ABC):
         """
         Query relevant documents from the resources.
         """
-        pass

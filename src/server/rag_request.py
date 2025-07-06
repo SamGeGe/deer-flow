@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from pydantic import BaseModel, Field
+from typing import Optional
 
 from src.rag.retriever import Resource
 
@@ -9,7 +10,7 @@ from src.rag.retriever import Resource
 class RAGConfigResponse(BaseModel):
     """Response model for RAG config."""
 
-    provider: str | None = Field(
+    provider: Optional[str] = Field(
         None, description="The provider of the RAG, default is ragflow"
     )
 
@@ -17,7 +18,7 @@ class RAGConfigResponse(BaseModel):
 class RAGResourceRequest(BaseModel):
     """Request model for RAG resource."""
 
-    query: str | None = Field(
+    query: Optional[str] = Field(
         None, description="The query of the resource need to be searched"
     )
 
