@@ -518,6 +518,8 @@ function PlanCard({
   // 编辑状态管理
   const [isEditing, setIsEditing] = useState(false);
   const [editedPlan, setEditedPlan] = useState(plan);
+  // 添加状态跟踪计划是否已经被接受（开始研究）
+  const [planAccepted, setPlanAccepted] = useState(false);
 
   // 当原始计划更新时，同步编辑状态
   useEffect(() => {
@@ -579,6 +581,8 @@ function PlanCard({
   
   const handleAccept = useCallback(async () => {
     if (onSendMessage) {
+      // 设置计划已被接受，隐藏按钮
+      setPlanAccepted(true);
       onSendMessage(
         `${GREETINGS[Math.floor(Math.random() * GREETINGS.length)]}`,
         {
@@ -710,7 +714,7 @@ function PlanCard({
               )}
             </CardContent>
             <CardFooter className="flex justify-end">
-              {!message.isStreaming && (
+              {!message.isStreaming && !planAccepted && (
                 <motion.div
                   className="flex gap-2"
                   initial={{ opacity: 0, scale: 0.8 }}
